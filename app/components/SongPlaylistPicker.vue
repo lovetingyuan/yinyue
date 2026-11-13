@@ -78,5 +78,6 @@ defineExpose({ open });
         </div>
       </footer>
     </form>
+    <form method="dialog" class="modal-backdrop"><button tabindex="-1" :disabled="saving">关闭歌单选择</button></form>
   </dialog>
 </template>

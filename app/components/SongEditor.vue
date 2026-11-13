@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useObjectUrl } from "@vueuse/core";
 import type { Song } from "~~/shared/types/library";
 import { audioMaxBytes, coverMaxBytes } from "~~/shared/library-limits";
 
@@ -16,7 +17,7 @@ const form = reactive({
 });
 const audio = shallowRef<File>();
 const cover = shallowRef<File>();
-const localCoverUrl = ref<string>();
+const localCoverUrl = useObjectUrl(cover);
 const audioInput = useTemplateRef("audioInput");
 const coverInput = useTemplateRef("coverInput");
 const removeCover = ref(false);
@@ -33,12 +34,6 @@ const fields = [
   { name: "lyricist", label: "作词" },
   { name: "composer", label: "作曲" },
 ] as const;
-
-watch(cover, (file, _, onCleanup) => {
-  const url = file ? URL.createObjectURL(file) : undefined;
-  localCoverUrl.value = url;
-  if (url) onCleanup(() => URL.revokeObjectURL(url));
-});
 
 async function selectAudio(event: Event) {
   const file = event.target instanceof HTMLInputElement ? event.target.files?.[0] : undefined;

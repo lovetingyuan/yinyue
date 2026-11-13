@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useMutationCache, useQuery, useQueryCache } from "@pinia/colada";
+import { useMediaQuery, useOnline, useStorage } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import type { Account } from "~~/shared/types/library";
 import { accountQueryKey, libraryKeys } from "~/utils/music-query-keys";
@@ -12,7 +13,16 @@ const library = useLibraryStore();
 const libraryPlayer = usePlayerStore();
 const queryCache = useQueryCache();
 const mutationCache = useMutationCache();
-const { drawerOpen, theme, offline, native } = storeToRefs(app);
+const { drawerOpen, offline, native } = storeToRefs(app);
+const theme = useStorage<"system" | "light" | "dark">("music-theme", "system", undefined, {
+  initOnMounted: true,
+  listenToStorageChanges: false,
+  writeDefaults: false,
+  serializer: {
+    read: (value) => value === "light" || value === "dark" ? value : "system",
+    write: (value) => value,
+  },
+});
 const { account, userId } = storeToRefs(session);
 const config = useRuntimeConfig().public;
 const mode = ref<"login" | "register" | "forgot" | "reset">("login");
@@ -30,8 +40,8 @@ const profile = useTemplateRef("profile");
 const drawerTrigger = useTemplateRef("drawerTrigger");
 const drawerClose = useTemplateRef("drawerClose");
 const route = useRoute();
-const desktop = ref(false);
-let desktopQuery: MediaQueryList | undefined;
+const desktop = useMediaQuery("(min-width: 48rem)", { ssrWidth: 0 });
+const online = useOnline();
 
 const accountQuery = useQuery({
   key: accountQueryKey,
@@ -57,25 +67,21 @@ function bytes(size: number) {
   return size >= 1024 ** 3 ? `${(size / 1024 ** 3).toFixed(2)} GiB` : `${(size / 1024 ** 2).toFixed(1)} MiB`;
 }
 
-function updateConnection() {
+function updateConnection(isOnline: boolean) {
   const wasOffline = offline.value;
-  const nextOffline = !navigator.onLine;
+  const nextOffline = !isOnline;
   if (nextOffline) queryCache.cancelQueries({ key: accountQueryKey });
   if (wasOffline && !nextOffline && !signingOut.value) void accountQuery.refetch();
   offline.value = nextOffline;
 }
 
-function updateDrawerBreakpoint() {
-  desktop.value = desktopQuery?.matches ?? false;
-  if (desktop.value) drawerOpen.value = false;
-}
-
+watch(online, (isOnline) => { if (mounted.value) updateConnection(isOnline); });
+watch(desktop, (matches) => { if (matches) drawerOpen.value = false; });
 watch(() => route.path, () => { drawerOpen.value = false; });
 watch(drawerOpen, (open) => {
   if (open) drawerClose.value?.focus();
   else drawerTrigger.value?.focus();
 }, { flush: "post" });
-watch(theme, (value) => { if (import.meta.client) localStorage.setItem("music-theme", value); });
 watch(userId, async (_, previousId) => {
   if (!previousId) return;
   const filters = { key: libraryKeys.user(previousId) };
@@ -167,23 +173,13 @@ async function logout() {
 }
 
 onMounted(() => {
-  desktopQuery = window.matchMedia("(min-width: 48rem)");
-  updateDrawerBreakpoint();
-  desktopQuery.addEventListener("change", updateDrawerBreakpoint);
-  const savedTheme = localStorage.getItem("music-theme");
-  if (savedTheme === "light" || savedTheme === "dark") theme.value = savedTheme;
-  updateConnection();
-  window.addEventListener("online", updateConnection);
-  window.addEventListener("offline", updateConnection);
+  updateConnection(online.value);
   resetToken.value = new URLSearchParams(location.search).get("token") ?? "";
   if (resetToken.value) mode.value = "reset";
   mounted.value = true;
 });
 
 onBeforeUnmount(() => {
-  desktopQuery?.removeEventListener("change", updateDrawerBreakpoint);
-  window.removeEventListener("online", updateConnection);
-  window.removeEventListener("offline", updateConnection);
   void libraryPlayer.setOwner("");
 });
 </script>
@@ -259,6 +255,7 @@ onBeforeUnmount(() => {
           <button class="btn btn-error btn-outline" :disabled="busy" @click="run(logout)">退出登录</button>
         </div>
       </div>
+      <form method="dialog" class="modal-backdrop"><button tabindex="-1" :disabled="busy">关闭账户弹窗</button></form>
     </dialog>
   </div>
   <main v-else class="app-height grid overflow-y-auto md:grid-cols-[minmax(0,1fr)_minmax(26rem,0.8fr)]" :class="{ 'select-none': native }">

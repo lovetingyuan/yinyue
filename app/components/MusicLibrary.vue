@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useObjectUrl } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import type { Playlist, Song } from "~~/shared/types/library";
 
@@ -28,7 +29,7 @@ const deleting = ref<"song" | "playlist">();
 const playlistName = ref("");
 const playlistEdit = ref<Playlist>();
 const playlistCover = shallowRef<File>();
-const playlistCoverPreview = ref<string>();
+const playlistCoverPreview = useObjectUrl(() => panel.value === "playlist" && playlistEdit.value ? playlistCover.value : undefined);
 const removeCover = ref(false);
 const playlistSave = usePlaylistSave();
 const libraryDelete = useLibraryDelete();
@@ -39,12 +40,6 @@ const title = computed(() => term.value ? "搜索结果" : playlist.value === "d
 const playlistCoverUrl = computed(() => {
   const id = playlists.value.find((item) => item.id === playlist.value)?.coverId;
   return id && !term.value ? coverUrls.value[id] : undefined;
-});
-
-watch(() => panel.value === "playlist" && playlistEdit.value ? playlistCover.value : undefined, (file, _, onCleanup) => {
-  const url = file ? URL.createObjectURL(file) : undefined;
-  playlistCoverPreview.value = url;
-  if (url) onCleanup(() => URL.revokeObjectURL(url));
 });
 
 async function retryLibrary() {
@@ -230,6 +225,7 @@ onBeforeUnmount(() => { library.songId = undefined; });
         </div>
         <p v-if="dialogError && panel !== 'details'" class="mt-2 text-error" role="alert">{{ dialogError }}</p>
       </div>
+      <form method="dialog" class="modal-backdrop"><button tabindex="-1" :disabled="pending || songEditor?.busy">关闭曲库弹窗</button></form>
     </dialog>
     <SongPlaylistPicker v-if="panel === 'details' && details" ref="playlistPicker" />
   </div>

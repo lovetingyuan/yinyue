@@ -31,6 +31,7 @@
   - 类型文件严禁引入运行时代码
   - 严禁无脑export类型，只export其他模块会用到的类型
 - Vue框架
+  - 禁止自行封装通用 Hook。优先直接使用 [VueUse](https://vueuse.org/) 提供的组合式函数。
   - 单个vue组件的行数最好不超过300
   - vue组件必须使用setup语法
   - 样式尽量使用tailwindcss而不是style block或者plain css
