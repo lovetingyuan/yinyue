@@ -1,3 +1,5 @@
+import { lstatSync, readlinkSync, unlinkSync } from "node:fs";
+import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
@@ -44,6 +46,21 @@ export default defineNuxtConfig({
   $env: {
     capacitor: {
       ssr: false,
+      hooks: {
+        close(nuxt) {
+          if (nuxt.options.dev) return;
+
+          // Nuxt adds a legacy dist link after the static build.
+          const root = nuxt.options.rootDir;
+          const dist = resolve(root, "dist");
+          if (
+            lstatSync(dist, { throwIfNoEntry: false })?.isSymbolicLink() &&
+            resolve(root, readlinkSync(dist)) === resolve(root, ".output-capacitor/public")
+          ) {
+            unlinkSync(dist);
+          }
+        },
+      },
       nitro: {
         preset: "static",
         // Dev server cleanup must not remove the packaged mobile assets.
