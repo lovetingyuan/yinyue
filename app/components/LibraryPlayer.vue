@@ -51,10 +51,11 @@ function changeMode(event: Event) {
       </button>
       <div class="contents md:flex md:flex-col md:items-center">
         <div class="flex items-center gap-0.5 md:gap-2">
-          <button type="button" class="btn btn-ghost btn-circle btn-sm hidden text-neutral-content hover:bg-neutral-content/12 md:inline-flex" aria-label="上一首" @click="emit('step', -1)"><MusicIcon name="previous" class="size-4" /></button>
+          <button type="button" class="btn btn-ghost btn-circle hidden text-neutral-content hover:bg-neutral-content/12 md:inline-flex" aria-label="上一首" @click="emit('step', -1)"><MusicIcon name="previous" class="size-4" /></button>
           <button type="button" class="btn btn-circle size-10 border-0 bg-neutral-content text-neutral hover:bg-neutral-content/85"
             :aria-label="playing ? '暂停' : '播放'" @click="emit('toggle')"><MusicIcon :name="playing ? 'pause' : 'play'" /></button>
           <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12" aria-label="下一首" @click="emit('step', 1)"><MusicIcon name="next" class="size-4" /></button>
+          <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12 md:hidden" aria-label="播放队列" aria-haspopup="dialog" @click="showMusicDialog(queueDialog)"><MusicIcon name="playlist" /></button>
         </div>
         <div class="col-span-full flex w-full items-center gap-2 text-[11px] text-neutral-content/75 tabular-nums">
           <span>{{ formatMusicTime(displayedPosition) }}</span>

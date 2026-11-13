@@ -16,9 +16,9 @@ const sections = [
       @click="emit('select', item.id)">
       <MusicIcon :name="item.icon" /> {{ item.name }}
     </button>
-    <div class="mt-5 flex items-center justify-between gap-2 px-3">
+    <div class="mt-5 flex items-center justify-between gap-2 pl-3">
       <span class="text-xs font-semibold text-base-content/65">我的歌单</span>
-      <button type="button" class="btn btn-ghost btn-circle btn-sm -mr-1" aria-label="新建歌单" title="新建歌单" @click="emit('edit')">
+      <button type="button" class="btn btn-ghost btn-circle btn-sm mr-1" aria-label="新建歌单" title="新建歌单" @click="emit('edit')">
         <MusicIcon name="plus" class="size-4" />
       </button>
     </div>

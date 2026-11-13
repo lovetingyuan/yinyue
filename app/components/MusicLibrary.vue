@@ -17,6 +17,7 @@ const loading = ref(false);
 const error = ref("");
 const dialog = useTemplateRef("dialog");
 const songEditor = useTemplateRef("songEditor");
+const playlistPicker = useTemplateRef("playlistPicker");
 const editing = ref<Song>();
 const panel = ref<"song" | "playlist" | "details" | "delete">();
 const details = ref<(Song & { playlistIds: string[] })>();
@@ -158,12 +159,9 @@ async function savePlaylist() {
   emit("changed");
 }
 
-async function membership(playlistId: string, included: boolean) {
-  const song = details.value;
-  if (!song) return;
-  await request(`/api/playlists/${playlistId}/songs/${song.id}`, { method: included ? "PUT" : "DELETE" });
-  song.playlistIds = included ? [...song.playlistIds, playlistId] : song.playlistIds.filter((id) => id !== playlistId);
-  await loadSongs();
+function updateMemberships(ids: string[]) {
+  if (details.value) details.value.playlistIds = ids;
+  void loadSongs();
 }
 
 async function remove() {
@@ -259,10 +257,13 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
     <LibraryPlayer :track="current" :queue="queue" :position="position" :volume="volume" :mode="mode" :playing="playing" :error="playbackError"
       @toggle="player.run(player.toggle)" @step="player.run(() => player.step($event))" @seek="player.run(() => player.seek($event))"
       @volume="player.run(() => player.setVolume($event))" @mode="player.run(() => player.setMode($event))" @retry="player.run(player.refresh)" />
-    <dialog ref="dialog" class="modal modal-bottom sm:modal-middle" aria-label="管理歌曲和歌单"
+    <dialog ref="dialog" class="modal modal-bottom sm:modal-middle"
+      :aria-label="panel === 'details' ? '歌曲详情' : '管理歌曲和歌单'"
       @cancel="(pending || songEditor?.busy) && $event.preventDefault()" @close="panel = undefined">
-      <div class="modal-box safe-panel">
-        <SongEditor v-if="panel === 'song'" ref="songEditor" :song="editing" @cancel="dialog?.close()" @saved="dialog?.close(); loadSongs(); emit('changed')" />
+      <div class="modal-box" :class="panel === 'details' ? 'flex max-h-[min(85dvh,42rem)] flex-col overflow-hidden p-0' : 'safe-panel'">
+        <SongEditor v-if="panel === 'song'" ref="songEditor" :song="editing"
+          :cover-url="editing?.coverId ? coverUrls[editing.coverId] : undefined"
+          @cancel="dialog?.close()" @saved="dialog?.close(); loadSongs(); emit('changed')" />
         <form v-else-if="panel === 'playlist'" class="grid gap-3" @submit.prevent="update(savePlaylist)">
           <h2 class="text-lg font-semibold">{{ playlistEdit ? "编辑歌单" : "新建歌单" }}</h2>
           <label class="grid gap-1">歌单名称<input v-model.trim="playlistName" class="input w-full" required maxlength="250"></label>
@@ -281,29 +282,10 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
             <button type="button" class="btn" @click="dialog?.close()">取消</button><button class="btn btn-primary" :disabled="pending">保存</button>
           </div>
         </form>
-        <div v-else-if="panel === 'details'" class="grid gap-3">
-          <template v-if="details">
-            <h2 class="text-lg font-semibold">{{ details.title }}</h2>
-            <p>{{ [details.artist, details.album, details.year].filter(Boolean).join(" · ") }}</p>
-            <p v-if="details.lyricist || details.composer">{{ [details.lyricist && `作词 ${details.lyricist}`, details.composer && `作曲 ${details.composer}`].filter(Boolean).join(" · ") }}</p>
-            <p v-if="details.description" class="whitespace-pre-wrap">{{ details.description }}</p>
-            <ul v-if="playlists.length" class="grid gap-2">
-              <li v-for="item in playlists" :key="item.id" class="flex items-center justify-between gap-2">
-                <span class="truncate">{{ item.name }}</span>
-                <button class="btn btn-sm" :disabled="pending" @click="update(() => membership(item.id, !details?.playlistIds.includes(item.id)))">
-                  {{ details.playlistIds.includes(item.id) ? "从歌单移除" : "加入歌单" }}
-                </button>
-              </li>
-            </ul>
-            <div class="flex flex-wrap justify-end gap-2">
-              <button class="btn btn-error btn-outline mr-auto" @click="deleting = 'song'; panel = 'delete'">删除歌曲</button>
-              <button class="btn" @click="openSong(details)">编辑</button>
-              <button class="btn" @click="dialog?.close()">关闭</button>
-            </div>
-          </template>
-          <p v-else-if="pending" role="status">加载中…</p>
-          <button v-else class="btn" @click="dialog?.close()">关闭</button>
-        </div>
+        <SongDetails v-else-if="panel === 'details'" :song="details"
+          :cover-url="details?.coverId ? coverUrls[details.coverId] : undefined" :loading="pending" :error="dialogError"
+          @close="dialog?.close()" @edit="openSong" @delete="deleting = 'song'; panel = 'delete'"
+          @playlists="playlistPicker?.open()" />
         <div v-else-if="panel === 'delete'" class="grid gap-3">
           <h2 class="text-lg font-semibold">{{ deleting === "song" ? `删除《${details?.title}》？` : `删除歌单「${playlistEdit?.name}」？` }}</h2>
           <p v-if="deleting === 'playlist'">歌单中的歌曲会保留。</p>
@@ -312,8 +294,11 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
             <button class="btn btn-error" :disabled="pending" @click="update(remove)">确认删除</button>
           </div>
         </div>
-        <p v-if="dialogError" class="mt-2 text-error" role="alert">{{ dialogError }}</p>
+        <p v-if="dialogError && panel !== 'details'" class="mt-2 text-error" role="alert">{{ dialogError }}</p>
       </div>
     </dialog>
+    <SongPlaylistPicker v-if="panel === 'details' && details" ref="playlistPicker"
+      :song-id="details.id" :playlist-ids="details.playlistIds" :playlists="playlists" :cover-urls="coverUrls"
+      @changed="updateMemberships" />
   </div>
 </template>

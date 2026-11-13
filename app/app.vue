@@ -190,7 +190,7 @@ onMounted(async () => {
         <div class="flex shrink-0 items-center justify-between gap-2 px-4 py-3">
           <NuxtLink to="/" class="flex min-h-10 items-center gap-2.5 rounded-field" aria-label="inyue 曲库" @click="drawerOpen = false">
             <span class="grid size-9 place-items-center rounded-xl bg-primary text-primary-content"><MusicIcon name="wave" /></span>
-            <span class="text-xl font-bold tracking-tight">inyue</span>
+            <span class="text-xl font-bold tracking-tight">inYue</span>
           </NuxtLink>
           <button ref="drawerClose" type="button" class="btn btn-ghost btn-square md:hidden" aria-label="关闭导航菜单" @click="drawerOpen = false">
             <MusicIcon name="close" />

@@ -2,7 +2,7 @@
 import type { Song } from "~~/shared/types/library";
 import { audioMaxBytes, coverMaxBytes } from "~~/shared/library-limits";
 
-const props = defineProps<{ song?: Song }>();
+const props = defineProps<{ song?: Song; coverUrl?: string }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
 const { request } = useMusicApi();
 const form = reactive({
@@ -16,6 +16,7 @@ const form = reactive({
 });
 const audio = shallowRef<File>();
 const cover = shallowRef<File>();
+const localCoverUrl = ref<string>();
 const audioInput = useTemplateRef("audioInput");
 const coverInput = useTemplateRef("coverInput");
 const removeCover = ref(false);
@@ -32,6 +33,12 @@ const fields = [
   { name: "lyricist", label: "作词" },
   { name: "composer", label: "作曲" },
 ] as const;
+
+watch(cover, (file, _, onCleanup) => {
+  const url = file ? URL.createObjectURL(file) : undefined;
+  localCoverUrl.value = url;
+  if (url) onCleanup(() => URL.revokeObjectURL(url));
+});
 
 async function selectAudio(event: Event) {
   const file = event.target instanceof HTMLInputElement ? event.target.files?.[0] : undefined;
@@ -145,23 +152,26 @@ defineExpose({ busy });
       </div>
       <div class="min-w-0">
         <input ref="coverInput" type="file" hidden accept="image/jpeg,image/png,image/webp" :disabled="busy || reading" @change="selectCoverFile">
-        <button class="btn btn-ghost h-14 w-full justify-start gap-3 rounded-box border-base-300 bg-base-100 px-3 text-left hover:bg-base-200"
-          type="button" :disabled="busy || reading" @click="coverInput?.click()">
-          <span class="grid size-9 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/75"><MusicIcon name="image" /></span>
-          <span class="min-w-0 flex-1">
-            <span class="block text-sm">{{ hasCover ? "更换封面" : "选择封面" }}</span>
-            <span class="block truncate text-xs font-normal text-base-content/70" :title="cover?.name">
-              {{ cover?.name ?? (hasCover ? "已有封面" : "可选 · 最大 1 MiB") }}
+        <div class="flex h-14 items-center rounded-box border border-base-300 bg-base-100 transition-colors hover:bg-base-200/50">
+          <MusicArtwork v-if="hasCover" zoomable :src="localCoverUrl ?? coverUrl" class="ml-3 w-9" />
+          <button class="btn btn-ghost h-full min-w-0 flex-1 justify-start gap-3 rounded-box border-0 px-3 text-left hover:bg-transparent hover:shadow-none"
+            type="button" :disabled="busy || reading" @click="coverInput?.click()">
+            <span v-if="!hasCover" class="grid size-9 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/75"><MusicIcon name="image" /></span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm">{{ hasCover ? "更换封面" : "选择封面" }}</span>
+              <span class="block truncate text-xs font-normal text-base-content/70" :title="cover?.name">
+                {{ cover?.name ?? (hasCover ? "已有封面" : "可选 · 最大 1 MiB") }}
+              </span>
             </span>
-          </span>
-          <MusicIcon v-if="!hasCover" name="plus" class="text-base-content/65" />
-        </button>
-        <span class="sr-only" role="status">{{ cover?.name }}</span>
-        <div v-if="hasCover || oversizedCover" class="mt-1 flex items-center gap-2">
-          <p v-if="oversizedCover" class="text-xs text-error" role="alert">封面超过 1 MiB，请移除或重新选择。</p>
-          <button class="btn btn-ghost btn-sm ml-auto shrink-0" type="button"
-            :disabled="busy || reading" @click="clearCover">移除封面</button>
+            <MusicIcon v-if="!hasCover && !oversizedCover" name="plus" class="text-base-content/65" />
+          </button>
+          <button v-if="hasCover || oversizedCover" class="btn btn-ghost btn-circle mr-1 size-11 shrink-0 hover:bg-transparent hover:text-error hover:shadow-none"
+            type="button" aria-label="移除封面" :disabled="busy || reading" @click="clearCover">
+            <MusicIcon name="close" class="size-4" />
+          </button>
         </div>
+        <span class="sr-only" role="status">{{ cover?.name }}</span>
+        <p v-if="oversizedCover" class="mt-1 text-xs text-error" role="alert">封面超过 1 MiB，请移除或重新选择。</p>
       </div>
     </div>
     <div class="grid grid-cols-2 gap-3">
