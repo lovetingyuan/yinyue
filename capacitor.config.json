@@ -1,0 +1,10 @@
+{
+  "appId": "com.tingyuan.music",
+  "appName": "music-cap",
+  "webDir": ".output-capacitor/public",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false
+    }
+  }
+}
