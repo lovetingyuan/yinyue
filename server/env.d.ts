@@ -1,1 +1,1 @@
-/// <reference types="../_cloudflare/env.d.ts" />
+import "../_cloudflare/env";

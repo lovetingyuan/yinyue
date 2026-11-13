@@ -1,8 +1,74 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
-:root {
-  color-scheme: light dark;
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #fbfaf7;
+  --color-base-200: #f1efe8;
+  --color-base-300: #e3e2d9;
+  --color-base-content: #202923;
+  --color-primary: #21654f;
+  --color-primary-content: #fff;
+  --color-secondary: #785536;
+  --color-secondary-content: #fff;
+  --color-accent: #4b675b;
+  --color-accent-content: #fff;
+  --color-neutral: #20352d;
+  --color-neutral-content: #f8faf6;
+  --color-info: #3c6483;
+  --color-info-content: #fff;
+  --color-success: #22634d;
+  --color-success-content: #fff;
+  --color-warning: #8a5c19;
+  --color-warning-content: #fff;
+  --color-error: #a83942;
+  --color-error-content: #fff;
+  --radius-selector: .5rem;
+  --radius-field: .75rem;
+  --radius-box: 1rem;
+  --size-selector: .25rem;
+  --size-field: .25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #191e1b;
+  --color-base-200: #202723;
+  --color-base-300: #303a34;
+  --color-base-content: #eef2eb;
+  --color-primary: #a8e1c5;
+  --color-primary-content: #17352b;
+  --color-secondary: #e1b993;
+  --color-secondary-content: #37281e;
+  --color-accent: #b4cbbd;
+  --color-accent-content: #283b32;
+  --color-neutral: #101b16;
+  --color-neutral-content: #f0f7ef;
+  --color-info: #afd6f1;
+  --color-info-content: #162c3a;
+  --color-success: #a8e1c5;
+  --color-success-content: #17352b;
+  --color-warning: #edcb8b;
+  --color-warning-content: #3b2a0c;
+  --color-error: #ffadb1;
+  --color-error-content: #4b1e23;
+  --radius-selector: .5rem;
+  --radius-field: .75rem;
+  --radius-box: 1rem;
+  --size-selector: .25rem;
+  --size-field: .25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
 }
 
 body {
@@ -12,4 +78,14 @@ body {
   padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
   padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
+@layer utilities {
+  .app-height {
+    height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+
+  .safe-panel {
+    padding-bottom: calc(1.5rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
 }

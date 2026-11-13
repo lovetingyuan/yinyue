@@ -1,7 +1,7 @@
 {
-  "name": "capacitor-app",
+  "name": "inyue",
   "version": "1.0.0",
-  "description": "An Amazing Capacitor App",
+  "description": "An Awesome music app",
   "type": "module",
   "private": true,
   "engines": {
@@ -26,15 +26,24 @@
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
     "deploy": "npm run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types --include-main-module=false"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.1",
     "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/camera": "latest",
     "@capacitor/core": "latest",
     "@capacitor/splash-screen": "latest",
+    "@capgo/capacitor-social-login": "8.7.10",
+    "@dwbn/capacitor-plugin-playlist": "8.4.3",
+    "@nuxtjs/better-auth": "0.3.16",
     "@tailwindcss/vite": "^4.3.5",
+    "@vite-pwa/nuxt": "2.0.1",
+    "better-auth": "1.7.22",
     "daisyui": "^5.8.0",
+    "drizzle-orm": "0.45.2",
+    "music-metadata": "12.5.0",
     "nitropack": "^2.13.6",
     "nuxt": "^4.6.4",
     "tailwindcss": "^4.3.5",

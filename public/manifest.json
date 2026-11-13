@@ -1,6 +1,6 @@
 {
-  "name": "App",
-  "short_name": "App",
+  "name": "inyue",
+  "short_name": "inyue",
   "start_url": "index.html",
   "display": "standalone",
   "icons": [{

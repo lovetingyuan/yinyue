@@ -1,8 +1,17 @@
 {
   "appId": "com.tingyuan.music",
-  "appName": "music-cap",
+  "appName": "inyue",
   "webDir": ".output-capacitor/public",
+  "loggingBehavior": "none",
   "plugins": {
+    "SocialLogin": {
+      "providers": {
+        "google": true,
+        "facebook": false,
+        "apple": false,
+        "twitter": false
+      }
+    },
     "SplashScreen": {
       "launchAutoHide": false
     }

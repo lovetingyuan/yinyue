@@ -21,3 +21,4 @@ logs/
 .dev.vars*
 !.dev.vars.example
 temp/
+android/.kotlin/

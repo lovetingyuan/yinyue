@@ -1,2 +1,3 @@
 telemetry.enabled=false
 telemetry.consent=0
+setups.@nuxtjs/better-auth="0.3.16"

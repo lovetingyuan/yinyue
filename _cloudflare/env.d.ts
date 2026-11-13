@@ -1,4 +1,4 @@
-/// <reference types="../worker-configuration.d.ts" />
+import "../worker-configuration";
 
 declare module "h3" {
   interface H3EventContext {

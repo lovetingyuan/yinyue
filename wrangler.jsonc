@@ -4,15 +4,29 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "my-nuxt-app",
+	"name": "inyue",
 	"main": "./.output/server/index.mjs",
 	"compatibility_date": "2026-11-10",
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "music-library",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "server/database/migrations"
+		}
+	],
+	"r2_buckets": [
+		{ "binding": "MEDIA", "bucket_name": "music-library-media" }
+	],
+	"triggers": { "crons": ["*/15 * * * *"] },
 	"assets": {
 		"binding": "ASSETS",
 		"directory": "./.output/public/"
 	},
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"logs": { "invocation_logs": false }
 	},
 	"upload_source_maps": true
 	/**
