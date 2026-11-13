@@ -37,6 +37,7 @@
     "@capacitor/splash-screen": "latest",
     "@capgo/capacitor-social-login": "8.7.10",
     "@dwbn/capacitor-plugin-playlist": "8.4.3",
+    "@lucide/vue": "^1.72.0",
     "@nuxtjs/better-auth": "0.3.16",
     "@tailwindcss/vite": "^4.3.5",
     "@vite-pwa/nuxt": "2.0.1",
