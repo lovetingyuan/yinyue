@@ -1,9 +1,16 @@
 <script setup lang="ts">
 import type { PlaylistPlugin, AudioTrack } from "@dwbn/capacitor-plugin-playlist";
 import type { PluginListenerHandle } from "@capacitor/core";
+import { useQuery } from "@pinia/colada";
+import { libraryKeys } from "~/utils/music-query-keys";
 
-const emit = defineEmits<{ released: [] }>();
 const { native, request } = useMusicApi();
+const session = useSessionStore();
+const tracks = useQuery({
+  key: () => [...libraryKeys.user(session.userId), "integration-tracks"],
+  enabled: false,
+  query: async ({ signal }) => (await request<{ id: string; url: string }[]>("/api/integration/tracks", { signal }))._data,
+});
 const mode = ref<"sequential" | "loop" | "shuffle">("sequential");
 const track = ref("");
 const position = ref(0);
@@ -11,9 +18,12 @@ const status = ref("");
 const busy = ref(false);
 let player: PlaylistPlugin | undefined;
 let listener: PluginListenerHandle | undefined;
+let operation: Promise<void> | undefined;
+let releaseOperation: Promise<void> | undefined;
 
 async function load() {
-  const { _data: urls } = await request<{ id: string; url: string }[]>("/api/integration/tracks");
+  const { data: urls } = await tracks.refetch(true);
+  if (releaseOperation) return;
   if (!urls?.length) throw new Error("没有可播放的测试音频。");
   const { Playlist, RmxAudioStatusMessage } = await import("@dwbn/capacitor-plugin-playlist");
   if (!player) {
@@ -45,26 +55,24 @@ async function load() {
   await player.play();
 }
 
-async function run(action: () => Promise<void> | undefined) {
+function run(action: () => Promise<void> | undefined) {
+  if (busy.value || releaseOperation) return;
   busy.value = true;
-  try {
-    await action();
-  } catch (error) {
+  operation = Promise.resolve().then(action).catch((error: unknown) => {
     status.value = error instanceof Error ? error.message.replace(/https?:\/\/[^\s]+/g, "[地址]") : "播放操作失败。";
-  } finally {
-    busy.value = false;
-  }
+  }).finally(() => { busy.value = false; });
 }
 
-async function release() {
-  if (!player) return;
-  await listener?.remove();
-  await player.release();
-  player = undefined;
-  track.value = "";
-  position.value = 0;
-  status.value = "";
-  emit("released");
+function release() {
+  return releaseOperation ??= Promise.resolve(operation).then(async () => {
+    if (!player) return;
+    try { await listener?.remove(); }
+    finally { await player.release(); }
+    player = undefined;
+    track.value = "";
+    position.value = 0;
+    status.value = "";
+  });
 }
 
 onBeforeUnmount(() => { void release().catch(() => undefined); });

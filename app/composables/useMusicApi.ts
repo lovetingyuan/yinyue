@@ -25,7 +25,7 @@ export function useMusicApi() {
       const token = await SecureStorage.getItem(sessionKey);
       if (token) headers.set("authorization", `Bearer ${token}`);
     }
-    return $fetch.raw<T>(path, { ...options, headers, baseURL, credentials: native ? "omit" : "same-origin" });
+    return $fetch.raw<T>(path, { retry: 0, ...options, headers, baseURL, credentials: native ? "omit" : "same-origin" });
   }
 
   async function signIn(body: { email: string; password: string } | { provider: "google"; idToken: { token: string } }) {

@@ -1,33 +1,38 @@
 <script setup lang="ts">
-import type { MediaAuthorization, Playlist, Song } from "~~/shared/types/library";
-const props = defineProps<{ userId: string; native: boolean; showLibrary: boolean }>();
-const emit = defineEmits<{ changed: []; navigated: [] }>();
-const { request } = useMusicApi();
+import { storeToRefs } from "pinia";
+import type { Playlist, Song } from "~~/shared/types/library";
+
+const library = useLibraryStore();
+const { playlist, search, term } = storeToRefs(library);
+const { current } = storeToRefs(usePlayerStore());
 const router = useRouter();
-const player = useLibraryPlayer(props.userId);
-const { current, queue, position, volume, playing, mode, error: playbackError } = player;
-const playlists = ref<Playlist[]>([]);
-const songs = ref<Song[]>([]);
-const coverUrls = ref<Record<string, string>>({});
-const playlist = ref("default");
-const search = ref("");
-const term = ref("");
-const offset = ref<number | null>(null);
-const loading = ref(false);
-const error = ref("");
+const showLibrary = computed(() => router.currentRoute.value.path === "/");
+const { songs: songQuery, playlists: playlistQuery, play } = useLibraryQueries();
+const { playlists } = usePlaylistState();
+const { data: details } = useSongDetailsState();
+const songs = computed(() => songQuery.data.value?.pages.flatMap(({ items }) => items) ?? []);
+const { hasNextPage, loadNextPage, isLoading: loading } = songQuery;
+const playlistCovers = useCoverQuery(() => playlists.value.flatMap(({ coverId }) => coverId ? [coverId] : []));
+const songCovers = useCoverQuery(() => songs.value.flatMap(({ coverId }) => coverId ? [coverId] : []));
+const coverUrls = computed(() => ({ ...playlistCovers.data.value, ...songCovers.data.value }));
+const error = computed(() => {
+  const cause = songQuery.error.value ?? playlistQuery.error.value ?? songCovers.error.value ?? playlistCovers.error.value;
+  return cause ? libraryError(cause) : "";
+});
 const dialog = useTemplateRef("dialog");
 const songEditor = useTemplateRef("songEditor");
 const playlistPicker = useTemplateRef("playlistPicker");
 const editing = ref<Song>();
 const panel = ref<"song" | "playlist" | "details" | "delete">();
-const details = ref<(Song & { playlistIds: string[] })>();
 const deleting = ref<"song" | "playlist">();
 const playlistName = ref("");
 const playlistEdit = ref<Playlist>();
 const playlistCover = shallowRef<File>();
 const playlistCoverPreview = ref<string>();
 const removeCover = ref(false);
-const pending = ref(false);
+const playlistSave = usePlaylistSave();
+const libraryDelete = useLibraryDelete();
+const pending = computed(() => playlistSave.isLoading.value || libraryDelete.isLoading.value);
 const dialogError = ref("");
 const title = computed(() => term.value ? "搜索结果" : playlist.value === "default" ? "默认歌单"
   : playlists.value.find((item) => item.id === playlist.value)?.name ?? "所有歌曲");
@@ -35,8 +40,6 @@ const playlistCoverUrl = computed(() => {
   const id = playlists.value.find((item) => item.id === playlist.value)?.coverId;
   return id && !term.value ? coverUrls.value[id] : undefined;
 });
-const filters = computed(() => ({ playlist: term.value ? "" : playlist.value, q: term.value }));
-let generation = 0;
 
 watch(() => panel.value === "playlist" && playlistEdit.value ? playlistCover.value : undefined, (file, _, onCleanup) => {
   const url = file ? URL.createObjectURL(file) : undefined;
@@ -44,63 +47,15 @@ watch(() => panel.value === "playlist" && playlistEdit.value ? playlistCover.val
   if (url) onCleanup(() => URL.revokeObjectURL(url));
 });
 
-async function loadSongs(next?: number) {
-  const revision = ++generation;
-  loading.value = true;
-  error.value = "";
-  if (next === undefined) songs.value = [];
-  if (next === undefined) offset.value = null;
-  try {
-    const { _data } = await request<{ items: Song[]; nextOffset: number | null }>("/api/songs", {
-      query: { ...filters.value, offset: next ?? 0 },
-    });
-    if (revision !== generation || !_data) return;
-    songs.value = next === undefined ? _data.items : [...songs.value, ..._data.items];
-    offset.value = _data.nextOffset;
-    const coverIds = _data.items.flatMap((song) => song.coverId ? [song.coverId] : []);
-    if (coverIds.length) {
-      const result = await request<MediaAuthorization>("/api/media/authorize", { method: "POST", body: { coverIds } });
-      if (revision === generation) coverUrls.value = { ...coverUrls.value, ...result._data?.covers };
-    }
-  } catch (cause) {
-    if (revision === generation) error.value = libraryError(cause);
-  } finally {
-    if (revision === generation) loading.value = false;
-  }
-}
-
-async function loadPlaylists() {
-  try {
-    playlists.value = (await request<Playlist[]>("/api/playlists"))._data ?? [];
-    const coverIds = playlists.value.flatMap((item) => item.coverId ? [item.coverId] : []);
-    for (let i = 0; i < coverIds.length; i += 80) {
-      const result = await request<MediaAuthorization>("/api/media/authorize", {
-        method: "POST", body: { coverIds: coverIds.slice(i, i + 80) },
-      });
-      coverUrls.value = { ...coverUrls.value, ...result._data?.covers };
-    }
-  } catch (cause) {
-    error.value = libraryError(cause);
-  }
-}
-
-async function navigate(id: string) {
-  if (!props.showLibrary && await router.push("/")) return;
-  playlist.value = id;
-  search.value = "";
-  term.value = "";
-  emit("navigated");
-  void loadSongs();
-}
-
-async function play(song: Song) {
-  const { _data } = await request<{ ids: string[] }>("/api/songs", { query: { ...filters.value, ids: true } });
-  await player.setQueue(_data?.ids ?? [], song.id, true);
+async function retryLibrary() {
+  await Promise.all([songQuery.refetch(), playlistQuery.refetch()]);
+  if (songCovers.error.value) void songCovers.refetch();
+  if (playlistCovers.error.value) void playlistCovers.refetch();
 }
 
 function playFirst() {
   const song = songs.value[0];
-  if (song) void player.run(() => play(song));
+  if (song) void play(song.id);
 }
 
 function show(kind: typeof panel.value) {
@@ -109,9 +64,19 @@ function show(kind: typeof panel.value) {
   showMusicDialog(dialog.value);
 }
 
+function closePanel() {
+  panel.value = undefined;
+  library.songId = undefined;
+}
+
 function openSong(song: Song) {
   editing.value = song;
   show("song");
+}
+
+function view(song: Song) {
+  library.songId = song.id;
+  show("details");
 }
 
 function openPlaylist(item?: Playlist) {
@@ -133,18 +98,8 @@ function clearPlaylistCover() {
 
 async function update(action: () => Promise<void>) {
   if (pending.value) return;
-  pending.value = true;
   dialogError.value = "";
   try { await action(); } catch (cause) { dialogError.value = libraryError(cause); }
-  finally { pending.value = false; }
-}
-
-async function view(song: Song) {
-  details.value = undefined;
-  show("details");
-  await update(async () => {
-    details.value = (await request<Song & { playlistIds: string[] }>(`/api/songs/${song.id}`))._data;
-  });
 }
 
 async function savePlaylist() {
@@ -152,47 +107,29 @@ async function savePlaylist() {
   body.set("name", playlistName.value);
   if (playlistCover.value) body.set("cover", playlistCover.value);
   else if (removeCover.value) body.set("removeCover", "true");
-  const item = playlistEdit.value;
-  await request(item ? `/api/playlists/${item.id}` : "/api/playlists", { method: item ? "PATCH" : "POST", body });
+  await playlistSave.mutateAsync({ playlistId: playlistEdit.value?.id, body });
   dialog.value?.close();
-  await loadPlaylists();
-  emit("changed");
-}
-
-function updateMemberships(ids: string[]) {
-  if (details.value) details.value.playlistIds = ids;
-  void loadSongs();
 }
 
 async function remove() {
-  if (deleting.value === "song" && details.value) {
-    await request(`/api/songs/${details.value.id}`, { method: "DELETE" });
-    await player.run(() => player.remove(details.value?.id ?? ""));
-  } else if (playlistEdit.value) {
-    await request(`/api/playlists/${playlistEdit.value.id}`, { method: "DELETE" });
-    if (playlist.value === playlistEdit.value.id) playlist.value = "default";
-    await loadPlaylists();
-  }
+  const kind = deleting.value;
+  const id = kind === "song" ? details.value?.id : playlistEdit.value?.id;
+  if (!kind || !id) return;
+  await libraryDelete.mutateAsync({ kind, id });
   dialog.value?.close();
-  await loadSongs();
-  emit("changed");
 }
 
-onMounted(() => {
-  void Promise.all([loadPlaylists(), loadSongs()]);
-});
-defineExpose({ release: () => player.release(true), refresh: () => loadSongs() });
+onBeforeUnmount(() => { library.songId = undefined; });
 </script>
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
     <Teleport defer to="#library-playlists">
-      <PlaylistNavigation :playlists="playlists" :cover-urls="coverUrls" :selected="!showLibrary || term ? null : playlist"
-        @select="navigate" @edit="openPlaylist" />
+      <PlaylistNavigation @edit="openPlaylist" />
     </Teleport>
     <section v-show="showLibrary" class="flex min-h-0 min-w-0 flex-1 flex-col bg-base-100" aria-label="歌曲列表">
       <div class="flex items-center gap-2 px-4 pb-3 pt-2 sm:gap-3 sm:px-6 md:pt-4">
-        <form role="search" class="flex min-w-0 flex-1" @submit.prevent="term = search.trim(); loadSongs()">
+        <form role="search" class="flex min-w-0 flex-1" @submit.prevent="library.submitSearch()">
           <div class="input min-w-0 w-full rounded-full border-transparent bg-base-200">
             <button type="submit" class="btn btn-ghost btn-circle btn-xs -ml-1 text-base-content/70" aria-label="搜索">
               <MusicIcon name="search" class="size-4" />
@@ -207,7 +144,7 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
           <div class="min-w-0 flex-1">
             <h2 class="line-clamp-2 wrap-anywhere text-xl leading-tight font-bold tracking-tight sm:text-2xl" :title="title">{{ title }}</h2>
             <p v-if="term" class="mt-1 truncate text-sm text-base-content/70">“{{ term }}”</p>
-            <p v-else-if="songs.length" class="mt-1 text-sm text-base-content/70">{{ songs.length }}{{ offset !== null ? '+' : '' }} 首歌曲</p>
+            <p v-else-if="songs.length" class="mt-1 text-sm text-base-content/70">{{ songs.length }}{{ hasNextPage ? '+' : '' }} 首歌曲</p>
           </div>
           <button v-if="songs[0]" type="button" class="btn btn-primary btn-circle shrink-0 sm:btn-lg" aria-label="播放歌单"
             @click="playFirst"><MusicIcon name="play" /></button>
@@ -216,7 +153,7 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
           <span class="loading loading-spinner loading-xs" aria-hidden="true" /> 加载中…
         </p>
         <div v-else-if="error" class="alert alert-error alert-soft mt-4" role="alert">
-          {{ error }} <button class="btn btn-sm" @click="loadSongs()">重试</button>
+          {{ error }} <button class="btn btn-sm" @click="retryLibrary">重试</button>
         </div>
         <div v-else-if="!songs.length" class="grid justify-items-center gap-3 py-12 text-center text-sm text-base-content/70">
           <MusicIcon :name="term ? 'search' : 'music'" class="size-8 text-primary" />
@@ -233,7 +170,7 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
               :class="current?.id === song.id ? 'bg-primary/8' : 'hover:bg-base-200/70'">
               <button class="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-field py-2 pr-1 text-left lg:px-3"
                 :aria-label="`播放 ${song.title}`" :aria-current="current?.id === song.id ? 'true' : undefined"
-                @click="player.run(() => play(song))">
+                @click="play(song.id)">
                 <span class="relative hidden w-6 shrink-0 place-items-center text-center text-xs tabular-nums lg:grid" aria-hidden="true">
                   <MusicIcon v-if="current?.id === song.id" name="wave" class="size-4 text-primary" />
                   <template v-else><span class="text-base-content/55 group-hover:opacity-0">{{ index + 1 }}</span><MusicIcon name="play" class="absolute size-4 opacity-0 group-hover:opacity-100" /></template>
@@ -249,21 +186,19 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
               <button class="btn btn-ghost btn-circle btn-sm mr-1" :aria-label="`${song.title} 详情`" @click="view(song)"><MusicIcon name="more" /></button>
             </li>
           </ul>
-          <button v-if="offset !== null" class="btn btn-ghost btn-sm mt-3" :disabled="loading" @click="loadSongs(offset)">加载更多</button>
+          <button v-if="hasNextPage" class="btn btn-ghost btn-sm mt-3" :disabled="loading" @click="loadNextPage()">加载更多</button>
         </div>
       </div>
     </section>
     <slot />
-    <LibraryPlayer :track="current" :queue="queue" :position="position" :volume="volume" :mode="mode" :playing="playing" :error="playbackError"
-      @toggle="player.run(player.toggle)" @step="player.run(() => player.step($event))" @seek="player.run(() => player.seek($event))"
-      @volume="player.run(() => player.setVolume($event))" @mode="player.run(() => player.setMode($event))" @retry="player.run(player.refresh)" />
+    <LibraryPlayer />
     <dialog ref="dialog" class="modal modal-bottom sm:modal-middle"
       :aria-label="panel === 'details' ? '歌曲详情' : '管理歌曲和歌单'"
-      @cancel="(pending || songEditor?.busy) && $event.preventDefault()" @close="panel = undefined">
+      @cancel="(pending || songEditor?.busy) && $event.preventDefault()" @close="closePanel">
       <div class="modal-box" :class="panel === 'details' ? 'flex max-h-[min(85dvh,42rem)] flex-col overflow-hidden p-0' : 'safe-panel'">
         <SongEditor v-if="panel === 'song'" ref="songEditor" :song="editing"
           :cover-url="editing?.coverId ? coverUrls[editing.coverId] : undefined"
-          @cancel="dialog?.close()" @saved="dialog?.close(); loadSongs(); emit('changed')" />
+          @cancel="dialog?.close()" @saved="dialog?.close()" />
         <form v-else-if="panel === 'playlist'" class="grid gap-3" @submit.prevent="update(savePlaylist)">
           <h2 class="text-lg font-semibold">{{ playlistEdit ? "编辑歌单" : "新建歌单" }}</h2>
           <label class="grid gap-1">歌单名称<input v-model.trim="playlistName" class="input w-full" required maxlength="250"></label>
@@ -282,8 +217,7 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
             <button type="button" class="btn" @click="dialog?.close()">取消</button><button class="btn btn-primary" :disabled="pending">保存</button>
           </div>
         </form>
-        <SongDetails v-else-if="panel === 'details'" :song="details"
-          :cover-url="details?.coverId ? coverUrls[details.coverId] : undefined" :loading="pending" :error="dialogError"
+        <SongDetails v-else-if="panel === 'details'"
           @close="dialog?.close()" @edit="openSong" @delete="deleting = 'song'; panel = 'delete'"
           @playlists="playlistPicker?.open()" />
         <div v-else-if="panel === 'delete'" class="grid gap-3">
@@ -297,8 +231,6 @@ defineExpose({ release: () => player.release(true), refresh: () => loadSongs() }
         <p v-if="dialogError && panel !== 'details'" class="mt-2 text-error" role="alert">{{ dialogError }}</p>
       </div>
     </dialog>
-    <SongPlaylistPicker v-if="panel === 'details' && details" ref="playlistPicker"
-      :song-id="details.id" :playlist-ids="details.playlistIds" :playlists="playlists" :cover-urls="coverUrls"
-      @changed="updateMemberships" />
+    <SongPlaylistPicker v-if="panel === 'details' && details" ref="playlistPicker" />
   </div>
 </template>

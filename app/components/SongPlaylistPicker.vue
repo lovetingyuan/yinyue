@@ -1,29 +1,22 @@
 <script setup lang="ts">
-import type { Playlist } from "~~/shared/types/library";
-
-const props = defineProps<{
-  songId: string;
-  playlistIds: string[];
-  playlists: Playlist[];
-  coverUrls: Record<string, string>;
-}>();
-const emit = defineEmits<{ changed: [string[]] }>();
-const { request } = useMusicApi();
+const { data: song } = useSongDetailsState();
+const { playlists, covers } = usePlaylistState();
+const membership = useSongMembershipSave();
 const dialog = useTemplateRef("dialog");
 const list = useTemplateRef("list");
 const heading = useTemplateRef("heading");
 const titleId = useId();
 const selected = ref(new Set<string>());
-const saving = ref(false);
+const saving = membership.isLoading;
 const error = ref("");
 const changes = computed(() => {
-  const saved = new Set(props.playlistIds);
-  return props.playlists.filter(({ id }) => selected.value.has(id) !== saved.has(id));
+  const saved = new Set(song.value?.playlistIds);
+  return playlists.value.filter(({ id }) => selected.value.has(id) !== saved.has(id));
 });
 
 async function open() {
-  if (dialog.value?.open) return;
-  selected.value = new Set(props.playlistIds);
+  if (dialog.value?.open || !song.value) return;
+  selected.value = new Set(song.value.playlistIds);
   error.value = "";
   await nextTick();
   showMusicDialog(dialog.value);
@@ -34,29 +27,16 @@ async function open() {
 }
 
 async function save() {
-  if (saving.value || !changes.value.length) return;
-  saving.value = true;
+  const songId = song.value?.id;
+  if (saving.value || !songId || !changes.value.length) return;
   error.value = "";
-  const saved = new Set(props.playlistIds);
-  const updates = changes.value;
-  let succeeded = 0;
+  const updates = changes.value.map(({ id }) => ({ id, included: selected.value.has(id) }));
   try {
-    for (const { id } of updates) {
-      const included = selected.value.has(id);
-      try {
-        await request(`/api/playlists/${id}/songs/${props.songId}`, { method: included ? "PUT" : "DELETE" });
-        if (included) saved.add(id);
-        else saved.delete(id);
-        succeeded++;
-      } catch (cause) {
-        error.value ||= libraryError(cause);
-      }
-    }
-    if (succeeded) emit("changed", [...saved]);
-    if (succeeded === updates.length) dialog.value?.close();
-    else if (succeeded) error.value = `部分歌单已保存。${error.value}`;
-  } finally {
-    saving.value = false;
+    const result = await membership.mutateAsync({ songId, changes: updates });
+    if (result.succeeded.length === updates.length) dialog.value?.close();
+    else error.value = result.succeeded.length ? `部分歌单已保存。${result.error}` : result.error;
+  } catch (cause) {
+    error.value = libraryError(cause);
   }
 }
 
@@ -76,7 +56,7 @@ defineExpose({ open });
             <li v-for="item in playlists" :key="item.id">
               <label class="flex min-h-14 cursor-pointer items-center gap-3 rounded-field border border-transparent px-2.5 py-2
                 hover:bg-base-200/80 focus-within:border-primary has-checked:bg-primary/10">
-                <MusicArtwork :src="item.coverId ? coverUrls[item.coverId] : undefined" class="w-9" />
+              <MusicArtwork :src="item.coverId ? covers[item.coverId] : undefined" class="w-9" />
                 <span class="min-w-0 flex-1 truncate text-sm font-medium" :title="item.name">{{ item.name }}</span>
                 <input v-model="selected" type="checkbox" :value="item.id" class="checkbox checkbox-sm checkbox-primary shrink-0"
                   @change="error = ''">

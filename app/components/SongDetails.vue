@@ -2,7 +2,11 @@
 import { ListPlus, Pencil, Trash2 } from "@lucide/vue";
 import type { Song } from "~~/shared/types/library";
 
-defineProps<{ song?: Song; coverUrl?: string; loading: boolean; error: string }>();
+const { data: song, error: queryError, asyncStatus } = useSongDetailsState();
+const covers = useCoverQuery(() => song.value?.coverId ? [song.value.coverId] : []);
+const coverUrl = computed(() => song.value?.coverId ? covers.data.value?.[song.value.coverId] : undefined);
+const loading = computed(() => !song.value && (!queryError.value || asyncStatus.value === "loading"));
+const error = computed(() => queryError.value ? libraryError(queryError.value) : "");
 const emit = defineEmits<{ close: []; edit: [Song]; delete: []; playlists: [] }>();
 const playlistButton = useTemplateRef("playlistButton");
 </script>

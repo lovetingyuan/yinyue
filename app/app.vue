@@ -1,33 +1,55 @@
 <script setup lang="ts">
-import type LibraryPage from "~/pages/index.vue";
+import { useMutationCache, useQuery, useQueryCache } from "@pinia/colada";
+import { storeToRefs } from "pinia";
+import type { Account } from "~~/shared/types/library";
+import { accountQueryKey, libraryKeys } from "~/utils/music-query-keys";
 
-const { native, request, signIn, signOut } = useMusicApi();
-const auth = useAuthClient();
+const { request } = useMusicApi();
+const execute = useAccountActions();
+const app = useAppStore();
+const session = useSessionStore();
+const library = useLibraryStore();
+const libraryPlayer = usePlayerStore();
+const queryCache = useQueryCache();
+const mutationCache = useMutationCache();
+const { drawerOpen, theme, offline, native } = storeToRefs(app);
+const { account, userId } = storeToRefs(session);
 const config = useRuntimeConfig().public;
-const url = useRequestURL();
 const mode = ref<"login" | "register" | "forgot" | "reset">("login");
 const email = ref("");
 const name = ref("");
 const password = ref("");
-const resetToken = ref(url.searchParams.get("token") ?? "");
+const resetToken = ref("");
 const notice = ref("");
 const error = ref("");
 const busy = ref(false);
-const loading = ref(true);
+const mounted = ref(false);
+const signingOut = ref(false);
 const player = useTemplateRef("player");
-const page = useTemplateRef<{ pageRef?: InstanceType<typeof LibraryPage> }>("page");
 const profile = useTemplateRef("profile");
-const drawerOpen = useState("music-drawer-open", () => false);
 const drawerTrigger = useTemplateRef("drawerTrigger");
 const drawerClose = useTemplateRef("drawerClose");
 const route = useRoute();
-const account = ref<{
-  id: string; name: string; email: string; image?: string | null; storage: { usedBytes: number; quotaBytes: number };
-}>();
-const theme = ref("system");
-const offline = ref(false);
 const desktop = ref(false);
 let desktopQuery: MediaQueryList | undefined;
+
+const accountQuery = useQuery({
+  key: accountQueryKey,
+  enabled: () => mounted.value && !offline.value && !signingOut.value,
+  refetchOnReconnect: false,
+  query: async ({ signal }) => {
+    try {
+      return (await request<Account>("/api/account", { signal }))._data ?? null;
+    } catch (cause) {
+      if (typeof cause === "object" && cause !== null && "statusCode" in cause && [401, 403].includes(Number(cause.statusCode))) {
+        return null;
+      }
+      throw cause;
+    }
+  },
+});
+const loading = computed(() => accountQuery.isPending.value || (accountQuery.isLoading.value && !account.value));
+const accountError = computed(() => accountQuery.error.value && !account.value ? "暂时无法连接音乐库。" : "");
 
 useHead({ htmlAttrs: { lang: "zh-CN", "data-theme": () => theme.value === "system" ? undefined : theme.value } });
 
@@ -37,8 +59,10 @@ function bytes(size: number) {
 
 function updateConnection() {
   const wasOffline = offline.value;
-  offline.value = !navigator.onLine;
-  if (wasOffline && !offline.value) void loadAccount().catch(() => { account.value = undefined; });
+  const nextOffline = !navigator.onLine;
+  if (nextOffline) queryCache.cancelQueries({ key: accountQueryKey });
+  if (wasOffline && !nextOffline && !signingOut.value) void accountQuery.refetch();
+  offline.value = nextOffline;
 }
 
 function updateDrawerBreakpoint() {
@@ -52,18 +76,27 @@ watch(drawerOpen, (open) => {
   else drawerTrigger.value?.focus();
 }, { flush: "post" });
 watch(theme, (value) => { if (import.meta.client) localStorage.setItem("music-theme", value); });
-onBeforeUnmount(() => {
-  desktopQuery?.removeEventListener("change", updateDrawerBreakpoint);
-  window.removeEventListener("online", updateConnection);
-  window.removeEventListener("offline", updateConnection);
+watch(userId, async (_, previousId) => {
+  if (!previousId) return;
+  const filters = { key: libraryKeys.user(previousId) };
+  queryCache.cancelQueries(filters);
+  for (const entry of mutationCache.getEntries(filters)) mutationCache.remove(entry);
+  library.reset();
+  drawerOpen.value = false;
+  profile.value?.close();
+  await nextTick();
+  if (userId.value !== previousId) {
+    for (const entry of queryCache.getEntries(filters)) queryCache.remove(entry);
+  }
+}, { flush: "sync" });
+watch([userId, offline, () => accountQuery.isLoading.value], ([id, isOffline, checking]) => {
+  if (config.integrationPlayback) return;
+  if (!id || isOffline) void libraryPlayer.setOwner("");
+  else if (!checking) void libraryPlayer.setOwner(id);
 });
 
-async function loadAccount() {
-  const response = await request<typeof account.value>("/api/account");
-  account.value = response._data;
-}
-
 async function run(action: () => Promise<void>) {
+  if (busy.value) return;
   busy.value = true;
   notice.value = "";
   error.value = "";
@@ -80,24 +113,25 @@ async function run(action: () => Promise<void>) {
 }
 
 async function submit() {
+  const submittedPassword = password.value;
+  password.value = "";
   if (mode.value === "register") {
-    await request("/api/auth/sign-up/email", { method: "POST", body: { name: name.value, email: email.value, password: password.value, callbackURL: "/" } });
+    await execute({ type: "register", name: name.value, email: email.value, password: submittedPassword });
     notice.value = "请查收验证邮件。";
     mode.value = "login";
   } else if (mode.value === "forgot") {
-    await request("/api/auth/request-password-reset", { method: "POST", body: { email: email.value, redirectTo: "/" } });
+    await execute({ type: "forgot", email: email.value });
     notice.value = "如果该邮箱已注册，请查收重置邮件。";
   } else if (mode.value === "reset") {
-    await request("/api/auth/reset-password", { method: "POST", body: { token: resetToken.value, newPassword: password.value } });
+    await execute({ type: "reset", token: resetToken.value, password: submittedPassword });
     resetToken.value = "";
     history.replaceState(null, "", "/");
     mode.value = "login";
     notice.value = "密码已重置，请登录。";
   } else {
-    await signIn({ email: email.value, password: password.value });
-    await loadAccount();
+    await execute({ type: "login", email: email.value, password: submittedPassword });
+    await accountQuery.refetch(true);
   }
-  password.value = "";
 }
 
 async function resend() {
@@ -105,36 +139,34 @@ async function resend() {
     notice.value = "请填写邮箱。";
     return;
   }
-  await request("/api/auth/send-verification-email", { method: "POST", body: { email: email.value, callbackURL: "/" } });
+  await execute({ type: "resend", email: email.value });
   notice.value = "请查收验证邮件。";
 }
 
 async function google() {
-  if (native) {
-    const { SocialLogin } = await import("@capgo/capacitor-social-login");
-    await SocialLogin.initialize({ google: { webClientId: config.googleClientId } });
-    const { result } = await SocialLogin.login({ provider: "google", options: {} });
-    if (!("idToken" in result) || !result.idToken) throw new Error("Google ID token is missing");
-    await signIn({ provider: "google", idToken: { token: result.idToken } });
-    await loadAccount();
-    return;
-  }
-  const result = await auth?.signIn.social({ provider: "google", callbackURL: "/" });
-  if (result?.error) throw new Error(result.error.message);
+  await execute({ type: "google" });
+  if (native.value) await accountQuery.refetch(true);
 }
 
 async function logout() {
-  await page.value?.pageRef?.release();
-  await player.value?.release();
-  await signOut();
-  if (account.value) localStorage.removeItem(`music-playback:${account.value.id}`);
-  profile.value?.close();
-  drawerOpen.value = false;
-  account.value = undefined;
-  await navigateTo("/", { replace: true });
+  const id = userId.value;
+  signingOut.value = true;
+  queryCache.cancelQueries({ key: accountQueryKey });
+  try {
+    await execute({ type: "logout" });
+    const release = player.value?.release();
+    if (id) {
+      try { localStorage.removeItem(`music-playback:${id}`); } catch { /* Storage may be unavailable. */ }
+    }
+    queryCache.setQueryData(accountQueryKey, null);
+    await Promise.allSettled([libraryPlayer.setOwner(""), release]);
+    await navigateTo("/", { replace: true });
+  } finally {
+    signingOut.value = false;
+  }
 }
 
-onMounted(async () => {
+onMounted(() => {
   desktopQuery = window.matchMedia("(min-width: 48rem)");
   updateDrawerBreakpoint();
   desktopQuery.addEventListener("change", updateDrawerBreakpoint);
@@ -145,19 +177,14 @@ onMounted(async () => {
   window.addEventListener("offline", updateConnection);
   resetToken.value = new URLSearchParams(location.search).get("token") ?? "";
   if (resetToken.value) mode.value = "reset";
-  if (offline.value) {
-    loading.value = false;
-    return;
-  }
-  try {
-    await loadAccount();
-  } catch (cause) {
-    if (typeof cause !== "object" || cause === null || !("statusCode" in cause) || ![401, 403].includes(Number(cause.statusCode))) {
-      error.value = "暂时无法连接音乐库。";
-    }
-  } finally {
-    loading.value = false;
-  }
+  mounted.value = true;
+});
+
+onBeforeUnmount(() => {
+  desktopQuery?.removeEventListener("change", updateDrawerBreakpoint);
+  window.removeEventListener("online", updateConnection);
+  window.removeEventListener("offline", updateConnection);
+  void libraryPlayer.setOwner("");
 });
 </script>
 
@@ -176,8 +203,7 @@ onMounted(async () => {
       </header>
       <main class="flex min-h-0 flex-1 flex-col">
         <p v-if="offline" class="alert alert-info alert-soft m-3" role="status">当前离线，连接网络后可访问音乐库。</p>
-        <NuxtPage v-else ref="page" :key="account.id" :user-id="account.id" :native="native"
-          @navigated="drawerOpen = false" @changed="loadAccount().catch(() => undefined)" />
+        <NuxtPage v-else :key="account.id" />
       </main>
     </div>
     <div class="drawer-side motion-safe:transition-opacity md:h-full" :inert="!desktop && !drawerOpen">
@@ -227,7 +253,7 @@ onMounted(async () => {
             <option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option>
           </select>
         </label>
-        <p v-if="error" class="alert alert-error" role="alert">{{ error }}</p>
+        <p v-if="error || accountError" class="alert alert-error" role="alert">{{ error || accountError }}</p>
         <div class="flex justify-end gap-2">
           <form method="dialog"><button class="btn btn-ghost" :disabled="busy">关闭</button></form>
           <button class="btn btn-error btn-outline" :disabled="busy" @click="run(logout)">退出登录</button>
@@ -279,7 +305,7 @@ onMounted(async () => {
             <button v-if="mode === 'login' && config.googleClientId" class="btn btn-outline w-full" type="button" :disabled="busy" @click="run(google)">Google 登录</button>
           </template>
           <p v-if="notice" class="alert alert-info" role="status">{{ notice }}</p>
-          <p v-if="error" class="alert alert-error" role="alert">{{ error }}</p>
+          <p v-if="error || accountError" class="alert alert-error" role="alert">{{ error || accountError }}</p>
         </div>
       </div>
     </div>

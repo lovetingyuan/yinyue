@@ -1,5 +1,4 @@
 <script setup lang="ts">
-const emit = defineEmits<{ saved: [] }>();
 const router = useRouter();
 const editor = useTemplateRef("editor");
 useHead({ title: "新增歌曲 · inyue" });
@@ -22,7 +21,7 @@ onBeforeRouteLeave(() => !editor.value?.busy);
         </button>
         <h1 id="new-song-title" class="text-base font-semibold">新增歌曲</h1>
       </header>
-      <SongEditor ref="editor" @cancel="leave" @saved="emit('saved'); leave()" />
+      <SongEditor ref="editor" @cancel="leave" @saved="leave" />
     </div>
   </section>
 </template>

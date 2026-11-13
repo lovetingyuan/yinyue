@@ -54,7 +54,7 @@ export default defineNuxtConfig({
     },
   },
 
-  modules: ["nitro-cloudflare-dev", "@nuxtjs/better-auth", "@vite-pwa/nuxt"],
+  modules: ["nitro-cloudflare-dev", "@nuxtjs/better-auth", "@vite-pwa/nuxt", "@pinia/nuxt", "@pinia/colada-nuxt"],
 
   pwa: {
     registerType: "autoUpdate",

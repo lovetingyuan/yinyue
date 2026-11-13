@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import type { PlaybackMode, Track } from "~~/shared/types/library";
+import { storeToRefs } from "pinia";
 
-const props = defineProps<{
-  track?: Track; queue: Track[]; position: number; volume: number; playing: boolean; mode: PlaybackMode; error: string;
-}>();
-const emit = defineEmits<{ toggle: []; step: [number]; seek: [number]; volume: [number]; mode: [PlaybackMode]; retry: [] }>();
+const player = usePlayerStore();
+const { current: track, queue, position, volume, playing, mode, error } = storeToRefs(player);
 const nowPlaying = useTemplateRef("nowPlaying");
 const queueDialog = useTemplateRef("queueDialog");
-const duration = computed(() => props.track?.duration || 0);
+const duration = computed(() => track.value?.duration || 0);
 const seekPreview = ref<number>();
-const displayedPosition = computed(() => seekPreview.value ?? props.position);
+const displayedPosition = computed(() => seekPreview.value ?? position.value);
 const progress = computed(() => duration.value ? Math.min(1, Math.max(0, displayedPosition.value / duration.value)) : 0);
 
-watch(() => props.track?.id, (trackId) => {
+watch(() => track.value?.id, (trackId) => {
   seekPreview.value = undefined;
   if (trackId) return;
   queueDialog.value?.close();
@@ -25,20 +23,20 @@ function rangeValue(event: Event) {
 
 function commitSeek(event: Event) {
   seekPreview.value = undefined;
-  emit("seek", rangeValue(event));
+  void player.seek(rangeValue(event));
 }
 
 function changeMode(event: Event) {
   if (!(event.target instanceof HTMLSelectElement)) return;
   const value = event.target.value;
-  if (value === "sequential" || value === "loop" || value === "shuffle") emit("mode", value);
+  if (value === "sequential" || value === "loop" || value === "shuffle") void player.setMode(value);
 }
 </script>
 
 <template>
   <footer v-if="track || error" class="shrink-0 px-3 pb-2 pt-2 sm:px-4 sm:pb-3">
     <div v-if="error" role="alert" class="alert alert-error alert-soft mb-2 text-sm">
-      {{ error }} <button class="btn btn-xs" @click="emit('retry')">刷新队列</button>
+      {{ error }} <button class="btn btn-xs" @click="player.refresh()">刷新队列</button>
     </div>
     <div v-if="track" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-box bg-neutral px-2.5 py-2 text-neutral-content shadow-lg sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,1.4fr)_minmax(0,1fr)]">
       <button type="button" class="flex min-w-0 cursor-pointer items-center gap-3 rounded-field text-left"
@@ -51,10 +49,10 @@ function changeMode(event: Event) {
       </button>
       <div class="contents md:flex md:flex-col md:items-center">
         <div class="flex items-center gap-0.5 md:gap-2">
-          <button type="button" class="btn btn-ghost btn-circle hidden text-neutral-content hover:bg-neutral-content/12 md:inline-flex" aria-label="上一首" @click="emit('step', -1)"><MusicIcon name="previous" class="size-4" /></button>
+          <button type="button" class="btn btn-ghost btn-circle hidden text-neutral-content hover:bg-neutral-content/12 md:inline-flex" aria-label="上一首" @click="player.step(-1)"><MusicIcon name="previous" class="size-4" /></button>
           <button type="button" class="btn btn-circle size-10 border-0 bg-neutral-content text-neutral hover:bg-neutral-content/85"
-            :aria-label="playing ? '暂停' : '播放'" @click="emit('toggle')"><MusicIcon :name="playing ? 'pause' : 'play'" /></button>
-          <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12" aria-label="下一首" @click="emit('step', 1)"><MusicIcon name="next" class="size-4" /></button>
+            :aria-label="playing ? '暂停' : '播放'" @click="player.toggle()"><MusicIcon :name="playing ? 'pause' : 'play'" /></button>
+          <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12" aria-label="下一首" @click="player.step(1)"><MusicIcon name="next" class="size-4" /></button>
           <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12 md:hidden" aria-label="播放队列" aria-haspopup="dialog" @click="showMusicDialog(queueDialog)"><MusicIcon name="playlist" /></button>
         </div>
         <div class="col-span-full flex w-full items-center gap-2 text-[11px] text-neutral-content/75 tabular-nums">
@@ -69,7 +67,7 @@ function changeMode(event: Event) {
         <label class="hidden items-center gap-2 lg:flex">
           <MusicIcon name="volume" class="size-4" />
           <input aria-label="音量" class="range range-xs w-18 text-neutral-content [--range-thumb-size:0.55rem]"
-            type="range" min="0" max="1" step="0.05" :value="volume" @input="emit('volume', rangeValue($event))">
+            type="range" min="0" max="1" step="0.05" :value="volume" @input="player.setVolume(rangeValue($event))">
         </label>
         <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12" aria-label="播放队列" aria-haspopup="dialog" @click="showMusicDialog(queueDialog)"><MusicIcon name="playlist" /></button>
       </div>
@@ -100,9 +98,9 @@ function changeMode(event: Event) {
             </div>
           </div>
           <div class="flex items-center justify-center gap-5">
-            <button type="button" class="btn btn-ghost btn-circle btn-lg" aria-label="上一首" @click="emit('step', -1)"><MusicIcon name="previous" class="size-6" /></button>
-            <button type="button" class="btn btn-primary btn-circle size-16" :aria-label="playing ? '暂停' : '播放'" @click="emit('toggle')"><MusicIcon :name="playing ? 'pause' : 'play'" class="size-7" /></button>
-            <button type="button" class="btn btn-ghost btn-circle btn-lg" aria-label="下一首" @click="emit('step', 1)"><MusicIcon name="next" class="size-6" /></button>
+            <button type="button" class="btn btn-ghost btn-circle btn-lg" aria-label="上一首" @click="player.step(-1)"><MusicIcon name="previous" class="size-6" /></button>
+            <button type="button" class="btn btn-primary btn-circle size-16" :aria-label="playing ? '暂停' : '播放'" @click="player.toggle()"><MusicIcon :name="playing ? 'pause' : 'play'" class="size-7" /></button>
+            <button type="button" class="btn btn-ghost btn-circle btn-lg" aria-label="下一首" @click="player.step(1)"><MusicIcon name="next" class="size-6" /></button>
           </div>
           <div class="flex items-center justify-between gap-4">
             <select aria-label="播放模式" class="select select-sm w-auto" :value="mode" @change="changeMode">
@@ -112,11 +110,11 @@ function changeMode(event: Event) {
             </select>
             <label class="flex min-w-0 max-w-28 items-center gap-2 text-base-content/70">
               <MusicIcon name="volume" class="size-4" />
-              <input aria-label="音量" class="range range-xs min-w-0 flex-1" type="range" min="0" max="1" step="0.05" :value="volume" @input="emit('volume', rangeValue($event))">
+              <input aria-label="音量" class="range range-xs min-w-0 flex-1" type="range" min="0" max="1" step="0.05" :value="volume" @input="player.setVolume(rangeValue($event))">
             </label>
           </div>
           <div v-if="error" class="flex items-center justify-between gap-2 text-sm text-error" role="alert">
-            {{ error }} <button class="btn btn-xs" @click="emit('retry')">刷新队列</button>
+            {{ error }} <button class="btn btn-xs" @click="player.refresh()">刷新队列</button>
           </div>
         </div>
       </div>

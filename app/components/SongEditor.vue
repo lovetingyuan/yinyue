@@ -4,7 +4,7 @@ import { audioMaxBytes, coverMaxBytes } from "~~/shared/library-limits";
 
 const props = defineProps<{ song?: Song; coverUrl?: string }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
-const { request } = useMusicApi();
+const saveSong = useSongSave();
 const form = reactive({
   title: props.song?.title ?? "",
   artist: props.song?.artist ?? "",
@@ -23,7 +23,7 @@ const removeCover = ref(false);
 const hasCover = computed(() => Boolean(cover.value || (props.song?.coverId && !removeCover.value)));
 const oversizedCover = ref(false);
 const reading = ref(false);
-const busy = ref(false);
+const busy = saveSong.isLoading;
 const error = ref("");
 const fields = [
   { name: "title", label: "歌曲名" },
@@ -106,7 +106,6 @@ function clearCover() {
 
 async function save() {
   if (busy.value || reading.value || (!props.song && !audio.value) || oversizedCover.value) return;
-  busy.value = true;
   error.value = "";
   const body = new FormData();
   for (const [name, value] of Object.entries(form)) body.set(name, value);
@@ -114,13 +113,9 @@ async function save() {
   if (cover.value) body.set("cover", cover.value);
   if (removeCover.value) body.set("removeCover", "true");
   try {
-    await request(props.song ? `/api/songs/${props.song.id}` : "/api/songs", {
-      method: props.song ? "PATCH" : "POST", body,
-    });
+    await saveSong.mutateAsync({ songId: props.song?.id, body });
   } catch (cause) {
     error.value = libraryError(cause);
-  } finally {
-    busy.value = false;
   }
   if (!error.value) emit("saved");
 }

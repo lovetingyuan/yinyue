@@ -1,10 +1,13 @@
 import type { PluginListenerHandle } from "@capacitor/core";
 import type { PlaylistPlugin } from "@dwbn/capacitor-plugin-playlist";
+import { useQueryCache } from "@pinia/colada";
+import { defineStore } from "pinia";
 import type { MediaAuthorization, PlaybackMode, PlaybackSnapshot, Track } from "~~/shared/types/library";
+import { libraryKeys } from "~/utils/music-query-keys";
 
-export function useLibraryPlayer(userId: string) {
+export const usePlayerStore = defineStore("player", () => {
   const { native, request } = useMusicApi();
-  const key = `music-playback:${userId}`;
+  const queryCache = useQueryCache();
   const tracks = shallowRef<Track[]>([]);
   const ids = ref<string[]>([]);
   const order = ref<string[]>([]);
@@ -22,17 +25,23 @@ export function useLibraryPlayer(userId: string) {
   let player: PlaylistPlugin | undefined;
   let listener: PluginListenerHandle | undefined;
   let audio: HTMLAudioElement | undefined;
-  let released = false;
-  let revision = 0;
+  let owner = "";
+  let requestedOwner = "";
+  let ownerRevision = 0;
   let operations = Promise.resolve();
+  let cancelAuthorization: (() => void) | undefined;
+
+  function storageKey(userId: string) {
+    return `music-playback:${userId}`;
+  }
 
   watch([ids, order, id, position, mode, volume], () => {
-    if (released || !ids.value.length) return;
+    if (!import.meta.client || !owner || owner !== requestedOwner || !ids.value.length) return;
     const snapshot: PlaybackSnapshot = {
       ids: ids.value, order: order.value, id: id.value, position: position.value,
       mode: mode.value, volume: volume.value,
     };
-    try { localStorage.setItem(key, JSON.stringify(snapshot)); } catch { /* Storage may be unavailable. */ }
+    try { localStorage.setItem(storageKey(owner), JSON.stringify(snapshot)); } catch { /* Storage may be unavailable. */ }
   });
 
   function playbackError() {
@@ -44,15 +53,16 @@ export function useLibraryPlayer(userId: string) {
     if (player) return;
     const { Playlist, RmxAudioStatusMessage: eventType } = await import("@dwbn/capacitor-plugin-playlist");
     await Playlist.initialize();
+    player = Playlist;
     listener = await Playlist.addListener("status", ({ status }) => {
+      if (owner !== requestedOwner) return;
       if (status.msgType === eventType.RMXSTATUS_ERROR || status.msgType === eventType.RMXSTATUS_STALLED) playbackError();
-      if (order.value.includes(status.trackId)) id.value = status.trackId;
       if (status.value && "currentPosition" in status.value) {
+        if (order.value.includes(status.trackId)) id.value = status.trackId;
         position.value = status.value.currentPosition;
         playing.value = status.value.status === "playing";
       }
     });
-    player = Playlist;
   }
 
   function webAudio() {
@@ -82,7 +92,7 @@ export function useLibraryPlayer(userId: string) {
     if (native) {
       await initializeNative();
       const output = player;
-      if (released || !output) return;
+      if (owner !== requestedOwner || !output) return;
       await output.setLoop({ loop: mode.value === "loop" && order.value.length > 1 });
       await output.setPlaylistItems({
         items: queue.value.map(({ id, url, title, artist, album, coverUrl }) => ({
@@ -90,9 +100,10 @@ export function useLibraryPlayer(userId: string) {
         })),
         options: { startPaused: true, playFromId: selected },
       });
-      if (time > 0) await output.selectTrackById({ id: selected, position: time });
       await output.setPlaybackVolume({ volume: volume.value });
-      if (autoplay) await output.play();
+      if (owner !== requestedOwner) return;
+      if (autoplay) await output.playTrackById({ id: selected, position: time });
+      else await output.selectTrackById({ id: selected, position: time });
     } else {
       const output = webAudio();
       output.src = track.url;
@@ -120,21 +131,36 @@ export function useLibraryPlayer(userId: string) {
     return [selected, ...remaining];
   }
 
-  async function authorize(list: string[]) {
-    const result: Track[] = [];
-    for (let index = 0; index < list.length; index += 80) {
-      const { _data } = await request<MediaAuthorization>("/api/media/authorize", {
-        method: "POST", body: { songIds: list.slice(index, index + 80) },
-      });
-      result.push(...(_data?.tracks ?? []));
+  async function authorize(userId: string, list: string[]) {
+    if (!list.length) return [];
+    const entry = queryCache.ensure({
+      key: [...libraryKeys.user(userId), "track-authorization", list],
+      query: async ({ signal }) => {
+        const tracks: Track[] = [];
+        for (let index = 0; index < list.length; index += 80) {
+          const { _data } = await request<MediaAuthorization>("/api/media/authorize", {
+            method: "POST", body: { songIds: list.slice(index, index + 80) }, signal,
+          });
+          tracks.push(...(_data?.tracks ?? []));
+        }
+        return tracks;
+      },
+    });
+    cancelAuthorization = () => queryCache.cancel(entry);
+    try {
+      return (await queryCache.fetch(entry)).data ?? [];
+    } finally {
+      cancelAuthorization = undefined;
+      queryCache.remove(entry);
     }
-    return result;
   }
 
   async function setQueue(list: string[], selected: string, autoplay: boolean, snapshot?: PlaybackSnapshot) {
-    const generation = ++revision;
-    const authorized = await authorize(list);
-    if (released || generation !== revision) return;
+    const userId = owner;
+    const generation = ownerRevision;
+    if (!userId || userId !== requestedOwner) return;
+    const authorized = await authorize(userId, list);
+    if (generation !== ownerRevision) return;
     const available = new Set(authorized.map((track) => track.id));
     const valid = list.filter((track) => available.has(track));
     if (!valid.length) {
@@ -154,7 +180,7 @@ export function useLibraryPlayer(userId: string) {
   }
 
   async function restore() {
-    const raw = localStorage.getItem(key);
+    const raw = localStorage.getItem(storageKey(owner));
     if (!raw) return;
     let snapshot: PlaybackSnapshot;
     try { snapshot = JSON.parse(raw); } catch { return; }
@@ -231,15 +257,19 @@ export function useLibraryPlayer(userId: string) {
   }
 
   async function clearQueue() {
+    resetQueue();
+    if (owner) localStorage.removeItem(storageKey(owner));
+    if (player) await player.clearAllItems();
+    if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
+  }
+
+  function resetQueue() {
     tracks.value = [];
     ids.value = [];
     order.value = [];
     id.value = "";
     position.value = 0;
     playing.value = false;
-    localStorage.removeItem(key);
-    if (player) await player.clearAllItems();
-    if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
   }
 
   async function remove(trackId: string) {
@@ -257,32 +287,75 @@ export function useLibraryPlayer(userId: string) {
     });
   }
 
-  async function release(clearSaved = false) {
-    if (released) return;
-    released = true;
-    await listener?.remove();
-    await player?.release();
-    if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
+  async function release() {
+    const output = player;
+    const statusListener = listener;
+    listener = undefined;
+    player = undefined;
+    if (audio) {
+      audio.ontimeupdate = audio.onplay = audio.onpause = audio.onended = audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
     if (audio && "mediaSession" in navigator) {
       navigator.mediaSession.metadata = null;
       for (const action of ["play", "pause", "nexttrack", "previoustrack", "seekto"] as const) {
         navigator.mediaSession.setActionHandler(action, null);
       }
     }
-    if (clearSaved) localStorage.removeItem(key);
+    audio = undefined;
+    await Promise.allSettled([statusListener?.remove()]);
+    await Promise.allSettled([output?.release()]);
   }
 
-  function run(action: () => Promise<void>) {
+  function setOwner(userId: string) {
+    if (!import.meta.client || requestedOwner === userId) return operations;
+    requestedOwner = userId;
+    const generation = ++ownerRevision;
+    cancelAuthorization?.();
+    resetQueue();
     operations = operations.then(async () => {
-      if (released) return;
+      if (generation !== ownerRevision) return;
+      await release();
+      if (generation !== ownerRevision) return;
+      owner = userId;
+      mode.value = "sequential";
+      volume.value = 1;
       error.value = "";
-      try { await action(); } catch { playbackError(); }
+      if (userId) {
+        try { await restore(); } catch {
+          if (generation === ownerRevision) playbackError();
+        }
+      }
     });
     return operations;
   }
 
-  onMounted(() => { void run(restore); });
-  onBeforeUnmount(() => { void release().catch(() => undefined); });
+  function run(action: () => Promise<void>) {
+    const userId = requestedOwner;
+    const generation = ownerRevision;
+    operations = operations.then(async () => {
+      if (!userId || owner !== userId || generation !== ownerRevision) return;
+      error.value = "";
+      try { await action(); } catch {
+        if (generation === ownerRevision) playbackError();
+      }
+    });
+    return operations;
+  }
 
-  return { current, queue, position, mode, volume, playing, error, run, setQueue, toggle, step, seek, setVolume, setMode, refresh, remove, release };
-}
+  return {
+    tracks, ids, order, id, current, queue, position, mode, volume, playing, error, setOwner,
+    play: (loadIds: () => Promise<string[]>, selected: string) => run(async () => {
+      await setQueue(await loadIds(), selected, true);
+    }),
+    toggle: () => run(toggle),
+    step: (direction: number) => run(() => step(direction)),
+    seek: (time: number) => run(() => seek(time)),
+    setVolume: (value: number) => run(() => setVolume(value)),
+    setMode: (value: PlaybackMode) => run(() => setMode(value)),
+    refresh: () => run(refresh),
+    remove: (trackId: string) => run(() => remove(trackId)),
+  };
+});

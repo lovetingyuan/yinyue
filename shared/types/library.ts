@@ -17,6 +17,18 @@ export interface Playlist {
   coverId: string | null;
 }
 
+export interface SongDetails extends Song {
+  playlistIds: string[];
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+  storage: { usedBytes: number; quotaBytes: number };
+}
+
 export interface Track {
   id: string;
   title: string;
