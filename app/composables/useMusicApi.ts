@@ -11,13 +11,15 @@ export function useMusicApi() {
     const headers = new Headers(options?.headers);
     let baseURL = "";
     if (native) {
-      try {
-        const api = new URL(config.mobileApiOrigin);
-        const local = config.mobileLocalTest && api.origin === "http://127.0.0.1:8794";
-        if (api.href !== `${api.origin}/` || (!local && api.protocol !== "https:")) throw new Error();
-        baseURL = api.origin;
-      } catch {
-        throw new Error("请配置 Android API 地址。");
+      if (!import.meta.dev || config.mobileApiOrigin) {
+        try {
+          const api = new URL(config.mobileApiOrigin);
+          const local = config.mobileLocalTest && api.origin === "http://127.0.0.1:8794";
+          if (api.href !== `${api.origin}/` || (!local && api.protocol !== "https:")) throw new Error();
+          baseURL = api.origin;
+        } catch {
+          throw new Error("请配置 Android API 地址。");
+        }
       }
       const { SecureStorage } = await import("@aparajita/capacitor-secure-storage");
       const token = await SecureStorage.getItem(sessionKey);

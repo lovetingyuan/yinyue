@@ -51,7 +51,7 @@ Tailwind 按[官方 Nuxt 指南](https://tailwindcss.com/docs/installation/frame
 npm run build:mobile
 npx cap sync android
 
-# 构建、安装并开启热更新
+# 安装调试包并开启热更新
 npm run android
 
 # 查看真机及模拟器的 Target ID
@@ -63,9 +63,9 @@ npm run android -- --target <ID>
 
 移动端使用 `capacitor` 配置环境关闭 SSR，静态资源独立生成到 `.output-capacitor/public/`，该路径也是 Capacitor 的 `webDir`，与 Web 构建产物互不覆盖。
 
-`npm run android` 先构建移动端资源，再同时启动 Nuxt 移动端开发服务和 Capacitor live-reload。应用加载 `http://127.0.0.1:5173`，通过 ADB 端口转发连接电脑，无需配置局域网 IP。`npm run dev:mobile` 可单独启动此模式的开发服务。
+`npm run android` 启动独立的 Nuxt 移动端开发服务，等页面和 Vite 客户端就绪后安装调试包。WebView 通过 ADB 转发加载 `http://127.0.0.1:5174`，页面、热更新和默认本地 API 都使用这个地址。Web 开发仍使用 5173。可通过 `NUXT_PUBLIC_MOBILE_API_ORIGIN` 指定其他后端，该后端需允许热更新页面的源。
 
-运行前请连接并授权手机，或先启动模拟器。启动命令通过 `scripts/android-reverse.mjs` 为指定的 `--target`（未指定时为已连接设备）建立持续的 ADB 转发，避免 `native-run` 在部署完成时撤销转发，导致页面脚本加载失败。USB 断开后需要重新运行命令恢复转发。
+运行前请连接并授权手机，或先启动模拟器。连接多台设备时使用 `--target`。Windows PowerShell 可用 `npm.cmd run android -- --target <ID>`，确保参数传给脚本。USB 重连后，若服务还在运行，可用 SDK 自带的 `adb reverse tcp:5174 tcp:5174` 恢复转发，再重开 App。
 
 保持终端运行即可使用热更新，按 Ctrl+C 停止。原生代码或插件变更后重新运行命令。在电脑 Chrome 打开 `chrome://inspect/#devices`，点击应用 WebView 的 **inspect** 调试。
 

@@ -7,6 +7,7 @@ import {
   setResponseHeaders,
 } from "h3";
 import { hasAccountMail } from "../utils/account-mail";
+import { androidDevOrigin } from "~~/shared/android-dev.mjs";
 
 const mailPaths = new Set([
   "/api/auth/sign-up/email",
@@ -20,7 +21,7 @@ export default defineEventHandler((event) => {
   const origin = getRequestHeader(event, "origin");
   const siteOrigin = config.public.siteUrl ? new URL(config.public.siteUrl).origin : "";
   if (origin && origin !== siteOrigin) {
-    const devOrigin = import.meta.dev && origin === "http://127.0.0.1:5173";
+    const devOrigin = import.meta.dev && (origin === "http://127.0.0.1:5173" || origin === androidDevOrigin);
     if (origin !== config.public.androidOrigin && !devOrigin) {
       throw createError({ statusCode: 403, statusMessage: "Origin is not allowed" });
     }

@@ -2,6 +2,7 @@ import { lstatSync, readlinkSync, unlinkSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
+import { vueVitePlugin } from "vite-plugin-dom-source";
 import { defaultQuotaBytes } from "./shared/library-limits";
 
 const require = createRequire(import.meta.url);
@@ -35,14 +36,14 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), vueVitePlugin()],
   },
 
   nitro: {
     preset: "cloudflare_module",
     externals: {
       // The generated Better Auth module imports the local TypeScript adapter.
-      inline: [/\/better-auth\/database\.mjs$/],
+      inline: [(id) => id.replaceAll("\\", "/").endsWith("/better-auth/database.mjs")],
     },
     alias: {
       "#music-worker-base": resolve(nitroRoot, "dist/presets/cloudflare/runtime/cloudflare-module.mjs"),
@@ -125,9 +126,12 @@ export default defineNuxtConfig({
 
   $env: {
     capacitor: {
+      ...(process.env.NODE_ENV === "development"
+        ? { buildDir: "temp/nuxt-android", vite: { cacheDir: "temp/vite-android" } }
+        : {}),
       ssr: false,
       pwa: { disable: true },
-      auth: { clientOnly: true },
+      auth: { clientOnly: process.env.NODE_ENV !== "development" },
       hooks: {
         close(nuxt) {
           if (nuxt.options.dev) return;

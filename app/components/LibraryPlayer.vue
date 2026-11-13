@@ -8,16 +8,24 @@ const emit = defineEmits<{ toggle: []; step: [number]; seek: [number]; volume: [
 const nowPlaying = useTemplateRef("nowPlaying");
 const queueDialog = useTemplateRef("queueDialog");
 const duration = computed(() => props.track?.duration || 0);
-const progress = computed(() => duration.value ? Math.min(100, Math.max(0, props.position / duration.value * 100)) : 0);
+const seekPreview = ref<number>();
+const displayedPosition = computed(() => seekPreview.value ?? props.position);
+const progress = computed(() => duration.value ? Math.min(1, Math.max(0, displayedPosition.value / duration.value)) : 0);
 
-watch(() => props.track, (track) => {
-  if (track) return;
+watch(() => props.track?.id, (trackId) => {
+  seekPreview.value = undefined;
+  if (trackId) return;
   queueDialog.value?.close();
   nowPlaying.value?.close();
 }, { flush: "sync" });
 
 function rangeValue(event: Event) {
   return event.target instanceof HTMLInputElement ? event.target.valueAsNumber : 0;
+}
+
+function commitSeek(event: Event) {
+  seekPreview.value = undefined;
+  emit("seek", rangeValue(event));
 }
 
 function changeMode(event: Event) {
@@ -32,7 +40,7 @@ function changeMode(event: Event) {
     <div v-if="error" role="alert" class="alert alert-error alert-soft mb-2 text-sm">
       {{ error }} <button class="btn btn-xs" @click="emit('retry')">刷新队列</button>
     </div>
-    <div v-if="track" class="relative isolate grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 overflow-hidden rounded-box bg-neutral px-2.5 py-2 text-neutral-content shadow-lg sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,1.4fr)_minmax(0,1fr)]">
+    <div v-if="track" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-box bg-neutral px-2.5 py-2 text-neutral-content shadow-lg sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,1.4fr)_minmax(0,1fr)]">
       <button type="button" class="flex min-w-0 cursor-pointer items-center gap-3 rounded-field text-left"
         aria-haspopup="dialog" aria-label="打开正在播放" @click="showMusicDialog(nowPlaying)">
         <MusicArtwork :src="track.coverUrl" class="w-11" />
@@ -40,19 +48,19 @@ function changeMode(event: Event) {
           <span class="block truncate text-sm font-semibold">{{ track.title }}</span>
           <span class="block truncate text-xs text-neutral-content/70">{{ track.artist }}</span>
         </span>
-        <MusicIcon name="down" class="hidden size-4 rotate-180 text-neutral-content/70 md:block" />
       </button>
-      <div class="flex items-center gap-0.5 md:flex-col">
+      <div class="contents md:flex md:flex-col md:items-center">
         <div class="flex items-center gap-0.5 md:gap-2">
           <button type="button" class="btn btn-ghost btn-circle btn-sm hidden text-neutral-content hover:bg-neutral-content/12 md:inline-flex" aria-label="上一首" @click="emit('step', -1)"><MusicIcon name="previous" class="size-4" /></button>
           <button type="button" class="btn btn-circle size-10 border-0 bg-neutral-content text-neutral hover:bg-neutral-content/85"
             :aria-label="playing ? '暂停' : '播放'" @click="emit('toggle')"><MusicIcon :name="playing ? 'pause' : 'play'" /></button>
           <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12" aria-label="下一首" @click="emit('step', 1)"><MusicIcon name="next" class="size-4" /></button>
         </div>
-        <div class="hidden w-full items-center gap-2 text-[11px] text-neutral-content/75 tabular-nums md:flex">
-          <span>{{ formatMusicTime(position) }}</span>
-          <input aria-label="播放进度" class="range range-xs min-w-0 flex-1 text-neutral-content [--range-thumb-size:0.55rem]"
-            type="range" min="0" :max="duration" step="0.1" :value="position" :disabled="!duration" @change="emit('seek', rangeValue($event))">
+        <div class="col-span-full flex w-full items-center gap-2 text-[11px] text-neutral-content/75 tabular-nums">
+          <span>{{ formatMusicTime(displayedPosition) }}</span>
+          <input :key="track.id" data-playback-seek aria-label="播放进度" class="range range-xs min-h-6 min-w-0 flex-1 touch-none text-neutral-content"
+            type="range" min="0" :max="duration" step="0.1" :value="displayedPosition" :disabled="!duration"
+            @input="seekPreview = rangeValue($event)" @change="commitSeek" @pointercancel="seekPreview = undefined" @blur="seekPreview = undefined">
           <span>{{ formatMusicTime(duration) }}</span>
         </div>
       </div>
@@ -63,9 +71,6 @@ function changeMode(event: Event) {
             type="range" min="0" max="1" step="0.05" :value="volume" @input="emit('volume', rangeValue($event))">
         </label>
         <button type="button" class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12" aria-label="播放队列" aria-haspopup="dialog" @click="showMusicDialog(queueDialog)"><MusicIcon name="playlist" /></button>
-      </div>
-      <div v-if="duration" aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-0.5 bg-neutral-content/15 md:hidden">
-        <div class="h-full bg-neutral-content/75" :style="{ width: `${progress}%` }" />
       </div>
     </div>
   </footer>
@@ -86,10 +91,11 @@ function changeMode(event: Event) {
             <p class="mt-1 truncate text-sm text-base-content/70">{{ track.artist }}<template v-if="track.album"> · {{ track.album }}</template></p>
           </div>
           <div>
-            <input aria-label="播放进度" class="range range-primary range-xs w-full" type="range" min="0" :max="duration" step="0.1" :value="position"
-              :disabled="!duration" @change="emit('seek', rangeValue($event))">
+            <input :key="track.id" data-playback-seek aria-label="播放进度" class="range range-primary range-xs min-h-6 w-full touch-none"
+              type="range" min="0" :max="duration" step="0.1" :value="displayedPosition" :disabled="!duration"
+              @input="seekPreview = rangeValue($event)" @change="commitSeek" @pointercancel="seekPreview = undefined" @blur="seekPreview = undefined">
             <div class="flex justify-between text-xs text-base-content/70 tabular-nums">
-              <span>{{ formatMusicTime(position) }}</span><span>{{ formatMusicTime(duration) }}</span>
+              <span>{{ formatMusicTime(displayedPosition) }}</span><span>{{ formatMusicTime(duration) }}</span>
             </div>
           </div>
           <div class="flex items-center justify-center gap-5">
@@ -137,3 +143,23 @@ function changeMode(event: Event) {
     <form method="dialog" class="modal-backdrop"><button aria-label="关闭播放队列">关闭</button></form>
   </dialog>
 </template>
+
+<style scoped>
+[data-playback-seek] {
+  --range-thumb-size: 0.625rem;
+  --range-thumb: currentColor;
+  --range-p: 0px;
+  --range-bg: transparent;
+  --range-fill: 0;
+  --seek-stop: calc(var(--range-thumb-size) / 2 + (100% - var(--range-thumb-size)) * v-bind(progress));
+  background: linear-gradient(90deg, currentColor var(--seek-stop), color-mix(in oklab, currentColor 24%, transparent) 0)
+    center / 100% 0.25rem no-repeat;
+}
+
+@media (forced-colors: active) {
+  [data-playback-seek] {
+    appearance: auto;
+    background: none;
+  }
+}
+</style>

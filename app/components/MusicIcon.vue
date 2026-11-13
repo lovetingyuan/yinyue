@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const paths = {
   music: "M9 18V5l12-2v13 M9 18a3 2 0 1 1-6 0 3 2 0 0 1 6 0 M21 16a3 2 0 1 1-6 0 3 2 0 0 1 6 0",
-  library: "M4 5v14 M9 5v14 M14 5v14 M17 5l4 13",
+  image: "M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 16l5-5 4 4 3-3 4 4 M15 8h.01",
+  menu: "M4 6h16 M4 12h16 M4 18h16",
   playlist: "M3 6h13 M3 11h13 M3 16h8 M17 14l5 3-5 3z",
   search: "M16 16l4 4 M18 11a7 7 0 1 1-14 0 7 7 0 0 1 14 0",
   plus: "M12 5v14 M5 12h14",

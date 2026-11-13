@@ -13,13 +13,16 @@ onBeforeRouteLeave(() => !editor.value?.busy);
 </script>
 
 <template>
-  <section class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-8" aria-label="新增歌曲">
+  <section class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-8 sm:py-6" aria-labelledby="new-song-title">
     <div class="mx-auto max-w-2xl">
-      <button type="button" class="btn btn-ghost mb-4 -ml-2" :disabled="editor?.busy" @click="leave">
-        <MusicIcon name="back" />
-        返回曲库
-      </button>
-      <SongEditor ref="editor" class="sm:rounded-box sm:bg-base-100 sm:p-8" @cancel="leave" @saved="emit('saved'); leave()" />
+      <header class="mb-4 flex items-center justify-between gap-3">
+        <button type="button" class="btn btn-ghost -ml-3" :disabled="editor?.busy" @click="leave">
+          <MusicIcon name="back" />
+          返回曲库
+        </button>
+        <h1 id="new-song-title" class="text-base font-semibold">新增歌曲</h1>
+      </header>
+      <SongEditor ref="editor" @cancel="leave" @saved="emit('saved'); leave()" />
     </div>
   </section>
 </template>

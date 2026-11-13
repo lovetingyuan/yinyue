@@ -17,11 +17,17 @@ const loading = ref(true);
 const player = useTemplateRef("player");
 const page = useTemplateRef<{ pageRef?: InstanceType<typeof LibraryPage> }>("page");
 const profile = useTemplateRef("profile");
+const drawerOpen = useState("music-drawer-open", () => false);
+const drawerTrigger = useTemplateRef("drawerTrigger");
+const drawerClose = useTemplateRef("drawerClose");
+const route = useRoute();
 const account = ref<{
   id: string; name: string; email: string; image?: string | null; storage: { usedBytes: number; quotaBytes: number };
 }>();
 const theme = ref("system");
 const offline = ref(false);
+const desktop = ref(false);
+let desktopQuery: MediaQueryList | undefined;
 
 useHead({ htmlAttrs: { lang: "zh-CN", "data-theme": () => theme.value === "system" ? undefined : theme.value } });
 
@@ -34,8 +40,20 @@ function updateConnection() {
   offline.value = !navigator.onLine;
   if (wasOffline && !offline.value) void loadAccount().catch(() => { account.value = undefined; });
 }
+
+function updateDrawerBreakpoint() {
+  desktop.value = desktopQuery?.matches ?? false;
+  if (desktop.value) drawerOpen.value = false;
+}
+
+watch(() => route.path, () => { drawerOpen.value = false; });
+watch(drawerOpen, (open) => {
+  if (open) drawerClose.value?.focus();
+  else drawerTrigger.value?.focus();
+}, { flush: "post" });
 watch(theme, (value) => { if (import.meta.client) localStorage.setItem("music-theme", value); });
 onBeforeUnmount(() => {
+  desktopQuery?.removeEventListener("change", updateDrawerBreakpoint);
   window.removeEventListener("online", updateConnection);
   window.removeEventListener("offline", updateConnection);
 });
@@ -111,11 +129,15 @@ async function logout() {
   await signOut();
   if (account.value) localStorage.removeItem(`music-playback:${account.value.id}`);
   profile.value?.close();
+  drawerOpen.value = false;
   account.value = undefined;
   await navigateTo("/", { replace: true });
 }
 
 onMounted(async () => {
+  desktopQuery = window.matchMedia("(min-width: 48rem)");
+  updateDrawerBreakpoint();
+  desktopQuery.addEventListener("change", updateDrawerBreakpoint);
   const savedTheme = localStorage.getItem("music-theme");
   if (savedTheme === "light" || savedTheme === "dark") theme.value = savedTheme;
   updateConnection();
@@ -142,19 +164,55 @@ onMounted(async () => {
 <template>
   <NuxtRouteAnnouncer />
   <NuxtPwaManifest />
-  <main v-if="account && !config.integrationPlayback" class="app-height mx-auto flex max-w-[100rem] flex-col" :class="{ 'select-none': native }">
-    <header class="flex shrink-0 items-center justify-between gap-3 px-4 py-2.5 md:px-6 md:py-3">
-      <NuxtLink to="/" class="flex items-center gap-2.5 rounded-field" aria-label="inyue 曲库">
-        <span class="grid size-9 place-items-center rounded-xl bg-primary text-primary-content"><MusicIcon name="wave" /></span>
-        <h1 class="text-[1.4rem] leading-none font-bold tracking-tight">inyue</h1>
-      </NuxtLink>
-      <button class="btn btn-ghost btn-circle border border-base-300/65 bg-base-200" aria-label="个人设置" aria-haspopup="dialog" @click="showMusicDialog(profile)">
-        <img v-if="account.image" :src="account.image" alt="" referrerpolicy="no-referrer" class="size-9 rounded-full object-cover">
-        <span v-else class="text-primary">{{ account.name.slice(0, 1) }}</span>
-      </button>
-    </header>
-    <p v-if="offline" class="alert alert-info alert-soft m-3" role="status">当前离线，连接网络后可访问音乐库。</p>
-    <NuxtPage v-else ref="page" :key="account.id" :user-id="account.id" :native="native" @changed="loadAccount().catch(() => undefined)" />
+  <div v-if="account && !config.integrationPlayback" class="drawer app-height mx-auto max-w-[100rem] grid-rows-[minmax(0,1fr)] md:drawer-open" :class="{ 'select-none': native }">
+    <input id="music-drawer" v-model="drawerOpen" type="checkbox" class="drawer-toggle" tabindex="-1" aria-hidden="true">
+    <div class="drawer-content flex min-h-0 flex-col" :inert="drawerOpen">
+      <header v-if="offline || route.path !== '/songs/new'" class="flex shrink-0 items-center gap-2 px-3 py-2 md:hidden">
+        <button ref="drawerTrigger" type="button" class="btn btn-ghost btn-square" aria-label="打开导航菜单"
+          aria-controls="music-sidebar" :aria-expanded="drawerOpen" @click="drawerOpen = true">
+          <MusicIcon name="menu" />
+        </button>
+        <span class="text-xl font-bold tracking-tight">inyue</span>
+      </header>
+      <main class="flex min-h-0 flex-1 flex-col">
+        <p v-if="offline" class="alert alert-info alert-soft m-3" role="status">当前离线，连接网络后可访问音乐库。</p>
+        <NuxtPage v-else ref="page" :key="account.id" :user-id="account.id" :native="native"
+          @navigated="drawerOpen = false" @changed="loadAccount().catch(() => undefined)" />
+      </main>
+    </div>
+    <div class="drawer-side motion-safe:transition-opacity md:h-full" :inert="!desktop && !drawerOpen">
+      <label for="music-drawer" class="drawer-overlay md:hidden" aria-hidden="true" />
+      <aside id="music-sidebar" class="flex h-full w-[min(18rem,85vw)] flex-col border-r border-base-300 bg-base-200
+        max-md:pt-[var(--safe-area-inset-top,env(safe-area-inset-top))] max-md:pb-[var(--safe-area-inset-bottom,env(safe-area-inset-bottom))]
+        max-md:pl-[var(--safe-area-inset-left,env(safe-area-inset-left))] md:w-56 lg:w-64"
+        :role="drawerOpen ? 'dialog' : undefined" :aria-modal="drawerOpen ? true : undefined" aria-label="应用导航"
+        @keydown.esc="drawerOpen = false">
+        <div class="flex shrink-0 items-center justify-between gap-2 px-4 py-3">
+          <NuxtLink to="/" class="flex min-h-10 items-center gap-2.5 rounded-field" aria-label="inyue 曲库" @click="drawerOpen = false">
+            <span class="grid size-9 place-items-center rounded-xl bg-primary text-primary-content"><MusicIcon name="wave" /></span>
+            <span class="text-xl font-bold tracking-tight">inyue</span>
+          </NuxtLink>
+          <button ref="drawerClose" type="button" class="btn btn-ghost btn-square md:hidden" aria-label="关闭导航菜单" @click="drawerOpen = false">
+            <MusicIcon name="close" />
+          </button>
+        </div>
+        <nav v-if="!offline" aria-label="曲库" class="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-3">
+          <NuxtLink to="/songs/new" class="btn btn-ghost shrink-0 justify-start gap-3 px-3 font-medium"
+            active-class="bg-primary/10 text-primary" @click="drawerOpen = false">
+            <MusicIcon name="plus" /> 新增歌曲
+          </NuxtLink>
+          <div id="library-playlists" class="min-h-0 overflow-y-auto overscroll-contain" />
+        </nav>
+        <div class="mt-auto shrink-0 border-t border-base-300 p-3">
+          <button type="button" class="btn btn-ghost h-auto min-h-11 w-full justify-start gap-3 px-2 py-1.5 text-left"
+            aria-label="个人设置" aria-haspopup="dialog" @click="showMusicDialog(profile)">
+            <img v-if="account.image" :src="account.image" alt="" referrerpolicy="no-referrer" class="size-9 shrink-0 rounded-full object-cover">
+            <span v-else aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">{{ account.name.slice(0, 1) }}</span>
+            <span class="min-w-0 truncate">{{ account.name }}</span>
+          </button>
+        </div>
+      </aside>
+    </div>
     <dialog ref="profile" class="modal modal-bottom sm:modal-middle" aria-labelledby="profile-title" @cancel="busy && $event.preventDefault()">
       <div class="modal-box safe-panel grid gap-4">
         <div>
@@ -176,7 +234,7 @@ onMounted(async () => {
         </div>
       </div>
     </dialog>
-  </main>
+  </div>
   <main v-else class="app-height grid overflow-y-auto md:grid-cols-[minmax(0,1fr)_minmax(26rem,0.8fr)]" :class="{ 'select-none': native }">
     <div class="hidden place-items-center overflow-hidden bg-neutral p-10 text-neutral-content md:grid" aria-hidden="true">
       <MusicArtwork class="w-full max-w-md rotate-[-8deg] shadow-2xl" />
@@ -203,7 +261,7 @@ onMounted(async () => {
             <IntegrationPlayer v-if="config.integrationPlayback" ref="player" />
           </template>
           <template v-else>
-            <h2 class="text-2xl font-bold tracking-tight">{{ { login: "登录", register: "注册", forgot: "找回密码", reset: "重置密码" }[mode] }}</h2>
+            <h2 v-if="mode === 'forgot' || mode === 'reset'" class="text-2xl font-bold tracking-tight">{{ mode === "forgot" ? "找回密码" : "重置密码" }}</h2>
             <form class="grid gap-3" @submit.prevent="run(submit)">
               <label v-if="mode === 'register'" class="grid gap-1.5 text-sm font-medium">昵称<input v-model.trim="name" class="input w-full" autocomplete="nickname" required></label>
               <label v-if="mode !== 'reset'" class="grid gap-1.5 text-sm font-medium">邮箱<input id="account-email" v-model.trim="email" type="email" class="input w-full" autocomplete="email" required></label>

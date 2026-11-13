@@ -10,14 +10,14 @@ const sections = [
 </script>
 
 <template>
-  <nav aria-label="歌单" class="grid content-start gap-1">
+  <div class="grid content-start gap-1">
     <button v-for="item in sections" :key="item.id" type="button" class="btn btn-ghost justify-start gap-3 px-3 font-medium"
       :class="{ 'bg-primary/10 text-primary': selected === item.id }" :aria-current="selected === item.id ? 'true' : undefined"
       @click="emit('select', item.id)">
       <MusicIcon :name="item.icon" /> {{ item.name }}
     </button>
     <div class="mt-5 flex items-center justify-between gap-2 px-3">
-      <h3 class="text-xs font-semibold text-base-content/65">我的歌单</h3>
+      <span class="text-xs font-semibold text-base-content/65">我的歌单</span>
       <button type="button" class="btn btn-ghost btn-circle btn-sm -mr-1" aria-label="新建歌单" title="新建歌单" @click="emit('edit')">
         <MusicIcon name="plus" class="size-4" />
       </button>
@@ -33,5 +33,5 @@ const sections = [
         <MusicIcon name="more" class="size-4" />
       </button>
     </div>
-  </nav>
+  </div>
 </template>

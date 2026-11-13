@@ -13,8 +13,8 @@
   ],
   "scripts": {
     "dev": "nuxt dev --host 127.0.0.1 --port 5173 --strictPort --no-takeover",
-    "dev:mobile": "npm run dev -- --envName capacitor",
-    "android": "npm run build:mobile && concurrently -k -P -i --default-input-target 1 \"npm run dev:mobile\" \"node scripts/android-reverse.mjs {@} && cap run android --live-reload --host 127.0.0.1 --port 5173 {@}\" --",
+    "dev:mobile": "nuxt dev --envName capacitor --host 127.0.0.1 --port 5174 --strictPort --no-takeover",
+    "android": "concurrently --kill-others-on-fail -P -i --default-input-target 1 \"npm run dev:mobile\" \"node scripts/android-dev.mjs {@}\" --",
     "android:devices": "cap run android --list",
     "start": "npm run dev",
     "build": "nuxt build",
@@ -57,6 +57,7 @@
     "nitro-cloudflare-dev": "^0.2.2",
     "oxlint": "^1.93.0",
     "typescript": "~6.0.3",
+    "vite-plugin-dom-source": "^1.0.2",
     "vue-tsc": "^3.3.14",
     "wrangler": "^4.160.0"
   },
