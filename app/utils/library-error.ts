@@ -16,7 +16,8 @@ export function libraryError(error: unknown) {
   if ("statusCode" in error && error.statusCode === 401) return "登录已失效，请重新登录。";
   const body = "data" in error ? error.data : undefined;
   if (typeof body === "object" && body !== null) {
-    const code = "code" in body ? body.code : "statusMessage" in body ? body.statusMessage : undefined;
+    const code =
+      "code" in body ? body.code : "statusMessage" in body ? body.statusMessage : undefined;
     if (typeof code === "string" && messages[code]) return messages[code];
   }
   return "操作失败，请检查网络后重试。";

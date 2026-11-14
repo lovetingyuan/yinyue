@@ -20,22 +20,31 @@ export function useAccountActions() {
           return signOut();
         case "register":
           await request("/api/auth/sign-up/email", {
-            method: "POST", body: { name: input.name, email: input.email, password: input.password, callbackURL: "/" },
+            method: "POST",
+            body: {
+              name: input.name,
+              email: input.email,
+              password: input.password,
+              callbackURL: "/",
+            },
           });
           break;
         case "forgot":
           await request("/api/auth/request-password-reset", {
-            method: "POST", body: { email: input.email, redirectTo: "/" },
+            method: "POST",
+            body: { email: input.email, redirectTo: "/" },
           });
           break;
         case "reset":
           await request("/api/auth/reset-password", {
-            method: "POST", body: { token: input.token, newPassword: input.password },
+            method: "POST",
+            body: { token: input.token, newPassword: input.password },
           });
           break;
         case "resend":
           await request("/api/auth/send-verification-email", {
-            method: "POST", body: { email: input.email, callbackURL: "/" },
+            method: "POST",
+            body: { email: input.email, callbackURL: "/" },
           });
           break;
         case "google":
@@ -43,7 +52,8 @@ export function useAccountActions() {
             const { SocialLogin } = await import("@capgo/capacitor-social-login");
             await SocialLogin.initialize({ google: { webClientId: googleClientId } });
             const { result } = await SocialLogin.login({ provider: "google", options: {} });
-            if (!("idToken" in result) || !result.idToken) throw new Error("Google ID token is missing");
+            if (!("idToken" in result) || !result.idToken)
+              throw new Error("Google ID token is missing");
             await signIn({ provider: "google", idToken: { token: result.idToken } });
           } else {
             const result = await auth?.signIn.social({ provider: "google", callbackURL: "/" });
@@ -52,7 +62,9 @@ export function useAccountActions() {
           break;
       }
     },
-    onSettled: (_, __, ___, { entry }) => { cache.remove(entry); },
+    onSettled: (_, __, ___, { entry }) => {
+      cache.remove(entry);
+    },
   });
 
   async function execute(input: AccountAction) {

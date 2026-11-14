@@ -14,8 +14,12 @@ export default defineEventHandler(async (event) => {
   const cover = coverUpload(form.get("cover"));
   const remove = formText(form, "removeCover", 4) === "true";
   const playlist = await withLibraryFiles(event, user.id, [cover], async ([coverId]) => {
-    const updated = await db.update(playlists).set({ name, ...(cover || remove ? { coverId } : {}) })
-      .where(playlistOwner(user.id, id)).returning(playlistFields).get();
+    const updated = await db
+      .update(playlists)
+      .set({ name, ...(cover || remove ? { coverId } : {}) })
+      .where(playlistOwner(user.id, id))
+      .returning(playlistFields)
+      .get();
     if (!updated) throw createError({ statusCode: 404, statusMessage: "PLAYLIST_NOT_FOUND" });
     return updated;
   });

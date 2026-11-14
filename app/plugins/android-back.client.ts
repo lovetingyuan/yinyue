@@ -17,6 +17,9 @@ export default defineNuxtPlugin({
       else if (router.currentRoute.value.path !== "/") void router.replace("/");
       else void App.minimizeApp();
     });
-    if (import.meta.hot) import.meta.hot.dispose(() => { void listener.remove(); });
+    if (import.meta.hot)
+      import.meta.hot.dispose(() => {
+        void listener.remove();
+      });
   },
 });

@@ -8,7 +8,8 @@ export { fields as songFields };
 
 export function songMetadata(form: Awaited<ReturnType<typeof uploadForm>>) {
   const year = formText(form, "year", 4);
-  if (year && !/^[1-9]\d{3}$/.test(year)) throw createError({ statusCode: 400, statusMessage: "INVALID_METADATA" });
+  if (year && !/^[1-9]\d{3}$/.test(year))
+    throw createError({ statusCode: 400, statusMessage: "INVALID_METADATA" });
   return {
     title: formText(form, "title", 250, true) ?? "",
     artist: formText(form, "artist", 250, true) ?? "",

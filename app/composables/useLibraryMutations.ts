@@ -10,15 +10,21 @@ export function useSongSave() {
   return useMutation({
     key: () => [...libraryKeys.user(session.userId), "save-song"],
     mutation: async ({ songId, body }: { songId?: string; body: FormData }) => {
-      await request(songId ? `/api/songs/${songId}` : "/api/songs", { method: songId ? "PATCH" : "POST", body });
+      await request(songId ? `/api/songs/${songId}` : "/api/songs", {
+        method: songId ? "PATCH" : "POST",
+        body,
+      });
     },
-    onSuccess: (_, { songId }, { userId, generation }) => session.generation === generation
-      ? Promise.allSettled([
-          queryCache.invalidateQueries({ key: libraryKeys.songs(userId) }),
-          ...(songId ? [queryCache.invalidateQueries({ key: libraryKeys.song(userId, songId) })] : []),
-          queryCache.invalidateQueries({ key: accountQueryKey }),
-        ])
-      : undefined,
+    onSuccess: (_, { songId }, { userId, generation }) =>
+      session.generation === generation
+        ? Promise.allSettled([
+            queryCache.invalidateQueries({ key: libraryKeys.songs(userId) }),
+            ...(songId
+              ? [queryCache.invalidateQueries({ key: libraryKeys.song(userId, songId) })]
+              : []),
+            queryCache.invalidateQueries({ key: accountQueryKey }),
+          ])
+        : undefined,
     onMutate: () => ({ userId: session.userId, generation: session.generation }),
   });
 }
@@ -31,15 +37,19 @@ export function usePlaylistSave() {
   return useMutation({
     key: () => [...libraryKeys.user(session.userId), "save-playlist"],
     mutation: async ({ playlistId, body }: { playlistId?: string; body: FormData }) => {
-      await request(playlistId ? `/api/playlists/${playlistId}` : "/api/playlists", { method: playlistId ? "PATCH" : "POST", body });
+      await request(playlistId ? `/api/playlists/${playlistId}` : "/api/playlists", {
+        method: playlistId ? "PATCH" : "POST",
+        body,
+      });
     },
     onMutate: () => ({ userId: session.userId, generation: session.generation }),
-    onSuccess: (_, __, { userId, generation }) => session.generation === generation
-      ? Promise.allSettled([
-          queryCache.invalidateQueries({ key: libraryKeys.playlists(userId) }),
-          queryCache.invalidateQueries({ key: accountQueryKey }),
-        ])
-      : undefined,
+    onSuccess: (_, __, { userId, generation }) =>
+      session.generation === generation
+        ? Promise.allSettled([
+            queryCache.invalidateQueries({ key: libraryKeys.playlists(userId) }),
+            queryCache.invalidateQueries({ key: accountQueryKey }),
+          ])
+        : undefined,
   });
 }
 
@@ -53,7 +63,9 @@ export function useLibraryDelete() {
   return useMutation({
     key: () => [...libraryKeys.user(session.userId), "delete"],
     mutation: async ({ kind, id }: { kind: "song" | "playlist"; id: string }) => {
-      await request(kind === "song" ? `/api/songs/${id}` : `/api/playlists/${id}`, { method: "DELETE" });
+      await request(kind === "song" ? `/api/songs/${id}` : `/api/playlists/${id}`, {
+        method: "DELETE",
+      });
     },
     onMutate: () => ({ userId: session.userId, generation: session.generation }),
     async onSuccess(_, { kind, id }, { userId, generation }) {
@@ -64,7 +76,9 @@ export function useLibraryDelete() {
         queryCache.invalidateQueries({ key: libraryKeys.songs(userId) }),
         queryCache.invalidateQueries({ key: libraryKeys.details(userId) }),
         queryCache.invalidateQueries({ key: accountQueryKey }),
-        kind === "song" ? player.remove(id) : queryCache.invalidateQueries({ key: libraryKeys.playlists(userId) }),
+        kind === "song"
+          ? player.remove(id)
+          : queryCache.invalidateQueries({ key: libraryKeys.playlists(userId) }),
       ]);
     },
   });
@@ -77,13 +91,18 @@ export function useSongMembershipSave() {
 
   return useMutation({
     key: () => [...libraryKeys.user(session.userId), "save-memberships"],
-    async mutation({ songId, changes }: { songId: string; changes: { id: string; included: boolean }[] }, { generation }) {
+    async mutation(
+      { songId, changes }: { songId: string; changes: { id: string; included: boolean }[] },
+      { generation },
+    ) {
       const succeeded: typeof changes = [];
       let error = "";
       for (const change of changes) {
         if (session.generation !== generation) break;
         try {
-          await request(`/api/playlists/${change.id}/songs/${songId}`, { method: change.included ? "PUT" : "DELETE" });
+          await request(`/api/playlists/${change.id}/songs/${songId}`, {
+            method: change.included ? "PUT" : "DELETE",
+          });
           succeeded.push(change);
         } catch (cause) {
           error ||= libraryError(cause);

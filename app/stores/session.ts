@@ -8,7 +8,13 @@ export const useSessionStore = defineStore("session", () => {
   const account = computed(() => data.value ?? null);
   const userId = computed(() => account.value?.id ?? "");
   const generation = ref(0);
-  watch(userId, () => { generation.value++; }, { flush: "sync" });
+  watch(
+    userId,
+    () => {
+      generation.value++;
+    },
+    { flush: "sync" },
+  );
 
   return { account, userId, generation };
 });

@@ -1,3 +1,3 @@
-import { defineClientAuth } from '@nuxtjs/better-auth/config'
+import { defineClientAuth } from "@nuxtjs/better-auth/config";
 
-export default defineClientAuth({})
+export default defineClientAuth({});

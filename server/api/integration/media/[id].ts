@@ -7,9 +7,15 @@ export default defineEventHandler(async (event) => {
   if (!["GET", "HEAD"].includes(event.method)) throw createError({ statusCode: 405 });
   const id = getRouterParam(event, "id");
   const { sid, expires, sig } = getQuery(event);
-  if (!id || !/^[1-3]$/.test(id) || typeof sid !== "string" || typeof expires !== "string"
-    || typeof sig !== "string" || !(await verifyMedia(secret, id, sid, Number(expires), sig))
-    || !(await getMediaSession(db, sid))) {
+  if (
+    !id ||
+    !/^[1-3]$/.test(id) ||
+    typeof sid !== "string" ||
+    typeof expires !== "string" ||
+    typeof sig !== "string" ||
+    !(await verifyMedia(secret, id, sid, Number(expires), sig)) ||
+    !(await getMediaSession(db, sid))
+  ) {
     return sendNoContent(event, 403);
   }
 

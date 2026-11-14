@@ -11,13 +11,27 @@ export default defineEventHandler(async (event) => {
   const cover = coverUpload(form.get("cover"));
   const audio = await audioUpload(form.get("audio"));
   const db = libraryDatabase(event);
-  const song = await withLibraryFiles(event, user.id, [audio, cover], async ([audioId, coverId]) => {
-    if (!audioId) throw createError({ statusCode: 500 });
-    return db.insert(songs).values({
-      ...metadata, id: crypto.randomUUID(), ownerId: user.id, audioId, coverId,
-      duration: audio.duration, createdAt: Date.now(),
-    }).returning(songFields).get();
-  });
+  const song = await withLibraryFiles(
+    event,
+    user.id,
+    [audio, cover],
+    async ([audioId, coverId]) => {
+      if (!audioId) throw createError({ statusCode: 500 });
+      return db
+        .insert(songs)
+        .values({
+          ...metadata,
+          id: crypto.randomUUID(),
+          ownerId: user.id,
+          audioId,
+          coverId,
+          duration: audio.duration,
+          createdAt: Date.now(),
+        })
+        .returning(songFields)
+        .get();
+    },
+  );
   setResponseStatus(event, 201);
   return song;
 });

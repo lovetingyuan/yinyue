@@ -15,7 +15,8 @@ export function useMusicApi() {
         try {
           const api = new URL(config.mobileApiOrigin);
           const local = config.mobileLocalTest && api.origin === "http://127.0.0.1:8794";
-          if (api.href !== `${api.origin}/` || (!local && api.protocol !== "https:")) throw new Error();
+          if (api.href !== `${api.origin}/` || (!local && api.protocol !== "https:"))
+            throw new Error();
           baseURL = api.origin;
         } catch {
           throw new Error("请配置 Android API 地址。");
@@ -25,10 +26,18 @@ export function useMusicApi() {
       const token = await SecureStorage.getItem(sessionKey);
       if (token) headers.set("authorization", `Bearer ${token}`);
     }
-    return $fetch.raw<T>(path, { retry: 0, ...options, headers, baseURL, credentials: native ? "omit" : "same-origin" });
+    return $fetch.raw<T>(path, {
+      retry: 0,
+      ...options,
+      headers,
+      baseURL,
+      credentials: native ? "omit" : "same-origin",
+    });
   }
 
-  async function signIn(body: { email: string; password: string } | { provider: "google"; idToken: { token: string } }) {
+  async function signIn(
+    body: { email: string; password: string } | { provider: "google"; idToken: { token: string } },
+  ) {
     const endpoint = "provider" in body ? "social" : "email";
     const response = await request(`/api/auth/sign-in/${endpoint}`, { method: "POST", body });
     if (native) {

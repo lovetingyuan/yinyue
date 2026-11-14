@@ -17,7 +17,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: "inyue",
+      title: "inYue",
       viewport: "width=device-width, initial-scale=1.0, viewport-fit=cover",
       link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
       meta: [
@@ -46,7 +46,10 @@ export default defineNuxtConfig({
       inline: [(id) => id.replaceAll("\\", "/").endsWith("/better-auth/database.mjs")],
     },
     alias: {
-      "#music-worker-base": resolve(nitroRoot, "dist/presets/cloudflare/runtime/cloudflare-module.mjs"),
+      "#music-worker-base": resolve(
+        nitroRoot,
+        "dist/presets/cloudflare/runtime/cloudflare-module.mjs",
+      ),
     },
     cloudflare: {
       deployConfig: true,
@@ -54,7 +57,13 @@ export default defineNuxtConfig({
     },
   },
 
-  modules: ["nitro-cloudflare-dev", "@nuxtjs/better-auth", "@vite-pwa/nuxt", "@pinia/nuxt", "@pinia/colada-nuxt"],
+  modules: [
+    "nitro-cloudflare-dev",
+    "@nuxtjs/better-auth",
+    "@vite-pwa/nuxt",
+    "@pinia/nuxt",
+    "@pinia/colada-nuxt",
+  ],
 
   pwa: {
     registerType: "autoUpdate",
@@ -67,19 +76,20 @@ export default defineNuxtConfig({
       display: "standalone",
       theme_color: "#16171d",
       background_color: "#16171d",
-      icons: [
-        { src: "/assets/imgs/logo.png", sizes: "512x512", type: "image/png" },
-      ],
+      icons: [{ src: "/assets/imgs/logo.png", sizes: "512x512", type: "image/png" }],
     },
     generateSW: {
       cleanURLs: false,
       globPatterns: ["offline.html", "assets/imgs/logo.png", "_nuxt/**/*.{js,css,woff2}"],
       navigateFallback: null,
-      runtimeCaching: [{
-        urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.mode === "navigate" && url.pathname === "/",
-        handler: "NetworkOnly",
-        options: { precacheFallback: { fallbackURL: "/offline" } },
-      }],
+      runtimeCaching: [
+        {
+          urlPattern: ({ request, url, sameOrigin }) =>
+            sameOrigin && request.mode === "navigate" && url.pathname === "/",
+          handler: "NetworkOnly",
+          options: { precacheFallback: { fallbackURL: "/offline" } },
+        },
+      ],
     },
   },
 

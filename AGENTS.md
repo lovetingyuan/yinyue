@@ -5,6 +5,7 @@
 ## 开发相关
 
 - 通用
+  - 应用面向用户的名称统一为 `inYue`，技术名称使用 `inyue`。
   - 技术栈：Nuxt 4、Vue 3、TypeScript、Tailwind CSS 4、daisyUI 5、Capacitor Android。
   - 页面与组件放 `app/`，服务端放 `server/`，共享代码放 `shared/`，遵循nuxt框架的最佳实践。
   - 禁止使用陈旧过时的语法、API、平台特性，禁止使用质量不佳的三方库，如更新不及时、采用率低等
@@ -22,7 +23,6 @@
   - 能在一行内的元素就尽量放在同一行
   - 不能忽略无障碍可访问性和html的语义性
   - 需要注意适配移动平台的“原生感”以及移动和web的交互差异，例如移动端运行时不可随意长按选中文字等，例如移动端的长按和hover失效等
-  - 禁止使用
 - TypeScript
   - 禁止无理由使用typescript的any关键字
   - 禁止仅为了类型通过而使用类型断言
@@ -31,6 +31,12 @@
   - 类型文件严禁引入运行时代码
   - 严禁无脑export类型，只export其他模块会用到的类型
 - Vue框架
+  - Vue 组件统一使用大驼峰（`PascalCase`）命名：
+    1. 组件文件名使用 `PascalCase`，如 `MusicLibrary.vue`。
+    2. 组件的 `name` 选项和组件变量名使用 `PascalCase`。
+    3. 组件的导入名（含别名）和全局或局部注册名使用 `PascalCase`。
+    4. 在模板或 JSX 中使用组件时，组件标签使用 `PascalCase`。
+  - 与 Nuxt 文件命名约定冲突时，以 Nuxt 约定为准。入口文件（如 `app/app.vue`）和文件路由（如 `app/pages/index.vue`、`app/pages/index/songs/new.vue`）沿用 Nuxt 命名，组件 `name` 仍使用 `PascalCase`。
   - 禁止自行封装通用 Hook。优先直接使用 [VueUse](https://vueuse.org/) 提供的组合式函数。
   - 单个vue组件的行数最好不超过300
   - vue组件必须使用setup语法

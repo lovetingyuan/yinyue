@@ -9,32 +9,40 @@ export function useLibraryQueries() {
   const cache = useQueryCache();
   const { request } = useMusicApi();
   const enabled = () => Boolean(session.userId) && !app.offline;
-  const songs = useInfiniteQuery<{ items: Song[]; nextOffset: number | null }, Error, number>(() => {
-    const filters = library.filters;
-    return {
-      key: [...libraryKeys.songs(session.userId), "pages", filters],
-      enabled: enabled(),
-      initialPageParam: 0,
-      query: async ({ pageParam, signal }) => {
-        const { _data } = await request<{ items: Song[]; nextOffset: number | null }>("/api/songs", {
-          query: { ...filters, offset: pageParam }, signal,
-        });
-        return _data ?? { items: [], nextOffset: null };
-      },
-      getNextPageParam: (page) => page.nextOffset,
-    };
-  });
+  const songs = useInfiniteQuery<{ items: Song[]; nextOffset: number | null }, Error, number>(
+    () => {
+      const filters = library.filters;
+      return {
+        key: [...libraryKeys.songs(session.userId), "pages", filters],
+        enabled: enabled(),
+        initialPageParam: 0,
+        query: async ({ pageParam, signal }) => {
+          const { _data } = await request<{ items: Song[]; nextOffset: number | null }>(
+            "/api/songs",
+            {
+              query: { ...filters, offset: pageParam },
+              signal,
+            },
+          );
+          return _data ?? { items: [], nextOffset: null };
+        },
+        getNextPageParam: (page) => page.nextOffset,
+      };
+    },
+  );
   const playlists = useQuery({
     key: () => libraryKeys.playlists(session.userId),
     enabled,
-    query: async ({ signal }) => (await request<Playlist[]>("/api/playlists", { signal }))._data ?? [],
+    query: async ({ signal }) =>
+      (await request<Playlist[]>("/api/playlists", { signal }))._data ?? [],
   });
   useQuery(() => {
     const id = library.songId;
     return {
       key: libraryKeys.song(session.userId, id ?? ""),
       enabled: Boolean(id) && enabled(),
-      query: async ({ signal }) => (await request<SongDetails>(`/api/songs/${id}`, { signal }))._data,
+      query: async ({ signal }) =>
+        (await request<SongDetails>(`/api/songs/${id}`, { signal }))._data,
     };
   });
   const player = usePlayerStore();
@@ -47,7 +55,8 @@ export function useLibraryQueries() {
         key: [...libraryKeys.songs(userId), "ids", filters],
         query: async ({ signal }) => {
           const { _data } = await request<{ ids: string[] }>("/api/songs", {
-            query: { ...filters, ids: true }, signal,
+            query: { ...filters, ids: true },
+            signal,
           });
           return _data?.ids ?? [];
         },
@@ -67,7 +76,9 @@ export function usePlaylistState() {
   const session = useSessionStore();
   const { data } = useQueryState<Playlist[]>(() => libraryKeys.playlists(session.userId));
   const playlists = computed(() => data.value ?? []);
-  const covers = useCoverState(() => playlists.value.flatMap(({ coverId }) => coverId ? [coverId] : []));
+  const covers = useCoverState(() =>
+    playlists.value.flatMap(({ coverId }) => (coverId ? [coverId] : [])),
+  );
   return { playlists, covers };
 }
 
@@ -87,7 +98,9 @@ function coverKey(userId: string, ids: string[]) {
 
 export function useCoverState(ids: () => readonly string[]) {
   const session = useSessionStore();
-  const { data } = useQueryState<Record<string, string>>(() => coverKey(session.userId, coverIds(ids())));
+  const { data } = useQueryState<Record<string, string>>(() =>
+    coverKey(session.userId, coverIds(ids())),
+  );
   return computed(() => data.value ?? {});
 }
 
@@ -105,7 +118,9 @@ export function useCoverQuery(ids: () => readonly string[]) {
         const covers: Record<string, string> = {};
         for (let index = 0; index < list.length; index += 80) {
           const { _data } = await request<MediaAuthorization>("/api/media/authorize", {
-            method: "POST", body: { coverIds: list.slice(index, index + 80) }, signal,
+            method: "POST",
+            body: { coverIds: list.slice(index, index + 80) },
+            signal,
           });
           Object.assign(covers, _data?.covers);
         }

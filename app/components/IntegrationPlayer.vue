@@ -9,7 +9,8 @@ const session = useSessionStore();
 const tracks = useQuery({
   key: () => [...libraryKeys.user(session.userId), "integration-tracks"],
   enabled: false,
-  query: async ({ signal }) => (await request<{ id: string; url: string }[]>("/api/integration/tracks", { signal }))._data,
+  query: async ({ signal }) =>
+    (await request<{ id: string; url: string }[]>("/api/integration/tracks", { signal }))._data,
 });
 const mode = ref<"sequential" | "loop" | "shuffle">("sequential");
 const track = ref("");
@@ -39,7 +40,11 @@ async function load() {
     });
   }
   const items: AudioTrack[] = urls.map(({ id, url }) => ({
-    trackId: id, assetUrl: url, title: `测试音频 ${id}`, artist: "inyue", album: "集成验证",
+    trackId: id,
+    assetUrl: url,
+    title: `测试音频 ${id}`,
+    artist: "inYue",
+    album: "集成验证",
   }));
   if (mode.value === "shuffle" && Math.random() < 0.5) {
     const second = items[1];
@@ -58,24 +63,37 @@ async function load() {
 function run(action: () => Promise<void> | undefined) {
   if (busy.value || releaseOperation) return;
   busy.value = true;
-  operation = Promise.resolve().then(action).catch((error: unknown) => {
-    status.value = error instanceof Error ? error.message.replace(/https?:\/\/[^\s]+/g, "[地址]") : "播放操作失败。";
-  }).finally(() => { busy.value = false; });
+  operation = Promise.resolve()
+    .then(action)
+    .catch((error: unknown) => {
+      status.value =
+        error instanceof Error
+          ? error.message.replace(/https?:\/\/[^\s]+/g, "[地址]")
+          : "播放操作失败。";
+    })
+    .finally(() => {
+      busy.value = false;
+    });
 }
 
 function release() {
-  return releaseOperation ??= Promise.resolve(operation).then(async () => {
+  return (releaseOperation ??= Promise.resolve(operation).then(async () => {
     if (!player) return;
-    try { await listener?.remove(); }
-    finally { await player.release(); }
+    try {
+      await listener?.remove();
+    } finally {
+      await player.release();
+    }
     player = undefined;
     track.value = "";
     position.value = 0;
     status.value = "";
-  });
+  }));
 }
 
-onBeforeUnmount(() => { void release().catch(() => undefined); });
+onBeforeUnmount(() => {
+  void release().catch(() => undefined);
+});
 defineExpose({ release });
 </script>
 
@@ -89,13 +107,52 @@ defineExpose({ release });
         <option value="shuffle">随机播放</option>
       </select>
     </label>
-    <button id="play-integration" type="button" class="btn btn-primary" :disabled="busy" @click="run(load)">载入并播放测试音频</button>
+    <button
+      id="play-integration"
+      type="button"
+      class="btn btn-primary"
+      :disabled="busy"
+      @click="run(load)"
+    >
+      载入并播放测试音频
+    </button>
     <div class="flex flex-wrap gap-2">
-      <button type="button" class="btn btn-sm" :disabled="!track || busy" @click="run(() => player?.play())">播放</button>
-      <button type="button" class="btn btn-sm" :disabled="!track || busy" @click="run(() => player?.pause())">暂停</button>
-      <button type="button" class="btn btn-sm" :disabled="!track || busy" @click="run(() => player?.seekTo({ position: 8 }))">跳到 8 秒</button>
-      <button type="button" class="btn btn-sm" :disabled="!track || busy" @click="run(() => player?.skipForward())">下一首</button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        :disabled="!track || busy"
+        @click="run(() => player?.play())"
+      >
+        播放
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        :disabled="!track || busy"
+        @click="run(() => player?.pause())"
+      >
+        暂停
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        :disabled="!track || busy"
+        @click="run(() => player?.seekTo({ position: 8 }))"
+      >
+        跳到 8 秒
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm"
+        :disabled="!track || busy"
+        @click="run(() => player?.skipForward())"
+      >
+        下一首
+      </button>
     </div>
-    <p role="status">{{ status }}<template v-if="track"> · 第 {{ track }} 首 · {{ Math.floor(position) }} 秒</template></p>
+    <p role="status">
+      {{ status
+      }}<template v-if="track"> · 第 {{ track }} 首 · {{ Math.floor(position) }} 秒</template>
+    </p>
   </section>
 </template>

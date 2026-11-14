@@ -8,5 +8,10 @@ export function integrationMedia(event: H3Event) {
   if (!config.integrationPlayback || !/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin)) {
     throw createError({ statusCode: 404 });
   }
-  return { origin, secret: config.mediaSigningSecret, bucket: mediaBucket(event), db: libraryDatabase(event) };
+  return {
+    origin,
+    secret: config.mediaSigningSecret,
+    bucket: mediaBucket(event),
+    db: libraryDatabase(event),
+  };
 }

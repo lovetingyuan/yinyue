@@ -2,7 +2,12 @@ import type { PluginListenerHandle } from "@capacitor/core";
 import type { PlaylistPlugin } from "@dwbn/capacitor-plugin-playlist";
 import { useQueryCache } from "@pinia/colada";
 import { defineStore } from "pinia";
-import type { MediaAuthorization, PlaybackMode, PlaybackSnapshot, Track } from "~~/shared/types/library";
+import type {
+  MediaAuthorization,
+  PlaybackMode,
+  PlaybackSnapshot,
+  Track,
+} from "~~/shared/types/library";
 import { libraryKeys } from "~/utils/music-query-keys";
 
 export const usePlayerStore = defineStore("player", () => {
@@ -38,10 +43,18 @@ export const usePlayerStore = defineStore("player", () => {
   watch([ids, order, id, position, mode, volume], () => {
     if (!import.meta.client || !owner || owner !== requestedOwner || !ids.value.length) return;
     const snapshot: PlaybackSnapshot = {
-      ids: ids.value, order: order.value, id: id.value, position: position.value,
-      mode: mode.value, volume: volume.value,
+      ids: ids.value,
+      order: order.value,
+      id: id.value,
+      position: position.value,
+      mode: mode.value,
+      volume: volume.value,
     };
-    try { localStorage.setItem(storageKey(owner), JSON.stringify(snapshot)); } catch { /* Storage may be unavailable. */ }
+    try {
+      localStorage.setItem(storageKey(owner), JSON.stringify(snapshot));
+    } catch {
+      /* Storage may be unavailable. */
+    }
   });
 
   function playbackError() {
@@ -51,12 +64,17 @@ export const usePlayerStore = defineStore("player", () => {
 
   async function initializeNative() {
     if (player) return;
-    const { Playlist, RmxAudioStatusMessage: eventType } = await import("@dwbn/capacitor-plugin-playlist");
+    const { Playlist, RmxAudioStatusMessage: eventType } =
+      await import("@dwbn/capacitor-plugin-playlist");
     await Playlist.initialize();
     player = Playlist;
     listener = await Playlist.addListener("status", ({ status }) => {
       if (owner !== requestedOwner) return;
-      if (status.msgType === eventType.RMXSTATUS_ERROR || status.msgType === eventType.RMXSTATUS_STALLED) playbackError();
+      if (
+        status.msgType === eventType.RMXSTATUS_ERROR ||
+        status.msgType === eventType.RMXSTATUS_STALLED
+      )
+        playbackError();
       if (status.value && "currentPosition" in status.value) {
         if (order.value.includes(status.trackId)) id.value = status.trackId;
         position.value = status.value.currentPosition;
@@ -69,17 +87,35 @@ export const usePlayerStore = defineStore("player", () => {
     if (audio) return audio;
     audio = new Audio();
     audio.preload = "metadata";
-    audio.ontimeupdate = () => { position.value = audio?.currentTime ?? 0; };
-    audio.onplay = () => { playing.value = true; };
-    audio.onpause = () => { playing.value = false; };
-    audio.onended = () => { void run(() => step(1)); };
+    audio.ontimeupdate = () => {
+      position.value = audio?.currentTime ?? 0;
+    };
+    audio.onplay = () => {
+      playing.value = true;
+    };
+    audio.onpause = () => {
+      playing.value = false;
+    };
+    audio.onended = () => {
+      void run(() => step(1));
+    };
     audio.onerror = playbackError;
     if ("mediaSession" in navigator) {
-      navigator.mediaSession.setActionHandler("play", () => { if (!playing.value) void run(toggle); });
-      navigator.mediaSession.setActionHandler("pause", () => { if (playing.value) void run(toggle); });
-      navigator.mediaSession.setActionHandler("nexttrack", () => { void run(() => step(1)); });
-      navigator.mediaSession.setActionHandler("previoustrack", () => { void run(() => step(-1)); });
-      navigator.mediaSession.setActionHandler("seekto", ({ seekTime }) => { if (seekTime !== undefined) void run(() => seek(seekTime)); });
+      navigator.mediaSession.setActionHandler("play", () => {
+        if (!playing.value) void run(toggle);
+      });
+      navigator.mediaSession.setActionHandler("pause", () => {
+        if (playing.value) void run(toggle);
+      });
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        void run(() => step(1));
+      });
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        void run(() => step(-1));
+      });
+      navigator.mediaSession.setActionHandler("seekto", ({ seekTime }) => {
+        if (seekTime !== undefined) void run(() => seek(seekTime));
+      });
     }
     return audio;
   }
@@ -96,7 +132,12 @@ export const usePlayerStore = defineStore("player", () => {
       await output.setLoop({ loop: mode.value === "loop" && order.value.length > 1 });
       await output.setPlaylistItems({
         items: queue.value.map(({ id, url, title, artist, album, coverUrl }) => ({
-          trackId: id, assetUrl: url, title, artist, album: album ?? "", albumArt: coverUrl ?? undefined,
+          trackId: id,
+          assetUrl: url,
+          title,
+          artist,
+          album: album ?? "",
+          albumArt: coverUrl ?? undefined,
         })),
         options: { startPaused: true, playFromId: selected },
       });
@@ -111,7 +152,9 @@ export const usePlayerStore = defineStore("player", () => {
       output.currentTime = time;
       if ("mediaSession" in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.title, artist: track.artist, album: track.album ?? "",
+          title: track.title,
+          artist: track.artist,
+          album: track.album ?? "",
           artwork: track.coverUrl ? [{ src: track.coverUrl }] : [],
         });
       }
@@ -139,7 +182,9 @@ export const usePlayerStore = defineStore("player", () => {
         const tracks: Track[] = [];
         for (let index = 0; index < list.length; index += 80) {
           const { _data } = await request<MediaAuthorization>("/api/media/authorize", {
-            method: "POST", body: { songIds: list.slice(index, index + 80) }, signal,
+            method: "POST",
+            body: { songIds: list.slice(index, index + 80) },
+            signal,
           });
           tracks.push(...(_data?.tracks ?? []));
         }
@@ -155,7 +200,12 @@ export const usePlayerStore = defineStore("player", () => {
     }
   }
 
-  async function setQueue(list: string[], selected: string, autoplay: boolean, snapshot?: PlaybackSnapshot) {
+  async function setQueue(
+    list: string[],
+    selected: string,
+    autoplay: boolean,
+    snapshot?: PlaybackSnapshot,
+  ) {
     const userId = owner;
     const generation = ownerRevision;
     if (!userId || userId !== requestedOwner) return;
@@ -176,18 +226,30 @@ export const usePlayerStore = defineStore("player", () => {
     if (!next) return;
     const previousOrder = snapshot?.order.filter((track) => available.has(track));
     order.value = previousOrder?.length === valid.length ? previousOrder : arrange(valid, next);
-    await load(next, next === selected ? snapshot?.position ?? 0 : 0, autoplay);
+    await load(next, next === selected ? (snapshot?.position ?? 0) : 0, autoplay);
   }
 
   async function restore() {
     const raw = localStorage.getItem(storageKey(owner));
     if (!raw) return;
     let snapshot: PlaybackSnapshot;
-    try { snapshot = JSON.parse(raw); } catch { return; }
-    if (!snapshot || !Array.isArray(snapshot.ids) || !Array.isArray(snapshot.order)
-      || !snapshot.ids.every((id) => typeof id === "string") || !snapshot.order.every((id) => typeof id === "string")
-      || typeof snapshot.id !== "string" || !Number.isFinite(snapshot.position) || !Number.isFinite(snapshot.volume)
-      || !["loop", "shuffle", "sequential"].includes(snapshot.mode)) return;
+    try {
+      snapshot = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (
+      !snapshot ||
+      !Array.isArray(snapshot.ids) ||
+      !Array.isArray(snapshot.order) ||
+      !snapshot.ids.every((id) => typeof id === "string") ||
+      !snapshot.order.every((id) => typeof id === "string") ||
+      typeof snapshot.id !== "string" ||
+      !Number.isFinite(snapshot.position) ||
+      !Number.isFinite(snapshot.volume) ||
+      !["loop", "shuffle", "sequential"].includes(snapshot.mode)
+    )
+      return;
     volume.value = Math.max(0, Math.min(1, snapshot.volume));
     await setQueue(snapshot.ids, snapshot.id, false, snapshot);
   }
@@ -210,9 +272,14 @@ export const usePlayerStore = defineStore("player", () => {
       return;
     }
     const index = order.value.indexOf(id.value) + direction;
-    const next = order.value[index] ?? (mode.value === "loop" && index >= order.value.length ? order.value[0] : undefined);
+    const next =
+      order.value[index] ??
+      (mode.value === "loop" && index >= order.value.length ? order.value[0] : undefined);
     if (next) await load(next, 0, true);
-    else if (direction > 0) { audio?.pause(); playing.value = false; }
+    else if (direction > 0) {
+      audio?.pause();
+      playing.value = false;
+    }
   }
 
   async function seek(time: number) {
@@ -232,7 +299,10 @@ export const usePlayerStore = defineStore("player", () => {
   async function setMode(value: PlaybackMode) {
     const nextMode = value === "loop" && ids.value.length < 2 ? "sequential" : value;
     if (nextMode === mode.value) return;
-    if (!id.value) { mode.value = nextMode; return; }
+    if (!id.value) {
+      mode.value = nextMode;
+      return;
+    }
     const nextOrder = arrange(ids.value, id.value, nextMode);
     if (player) {
       const nativeOrder = [...order.value];
@@ -250,9 +320,17 @@ export const usePlayerStore = defineStore("player", () => {
   }
 
   async function refresh() {
-    if (!ids.value.length) { await restore(); return; }
+    if (!ids.value.length) {
+      await restore();
+      return;
+    }
     await setQueue(ids.value, id.value, true, {
-      ids: ids.value, order: order.value, id: id.value, position: position.value, volume: volume.value, mode: mode.value,
+      ids: ids.value,
+      order: order.value,
+      id: id.value,
+      position: position.value,
+      volume: volume.value,
+      mode: mode.value,
     });
   }
 
@@ -260,7 +338,11 @@ export const usePlayerStore = defineStore("player", () => {
     resetQueue();
     if (owner) localStorage.removeItem(storageKey(owner));
     if (player) await player.clearAllItems();
-    if (audio) { audio.pause(); audio.removeAttribute("src"); audio.load(); }
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    }
   }
 
   function resetQueue() {
@@ -275,16 +357,28 @@ export const usePlayerStore = defineStore("player", () => {
   async function remove(trackId: string) {
     if (!ids.value.includes(trackId)) return;
     const remaining = ids.value.filter((id) => id !== trackId);
-    if (!remaining.length) { await clearQueue(); return; }
+    if (!remaining.length) {
+      await clearQueue();
+      return;
+    }
     const selected = trackId === id.value;
     if (selected) {
       await player?.pause();
       audio?.pause();
     }
-    await setQueue(remaining, selected ? remaining[0] ?? "" : id.value, !selected && playing.value, {
-      ids: remaining, order: order.value.filter((id) => id !== trackId), id: id.value,
-      position: selected ? 0 : position.value, volume: volume.value, mode: mode.value,
-    });
+    await setQueue(
+      remaining,
+      selected ? (remaining[0] ?? "") : id.value,
+      !selected && playing.value,
+      {
+        ids: remaining,
+        order: order.value.filter((id) => id !== trackId),
+        id: id.value,
+        position: selected ? 0 : position.value,
+        volume: volume.value,
+        mode: mode.value,
+      },
+    );
   }
 
   async function release() {
@@ -324,7 +418,9 @@ export const usePlayerStore = defineStore("player", () => {
       volume.value = 1;
       error.value = "";
       if (userId) {
-        try { await restore(); } catch {
+        try {
+          await restore();
+        } catch {
           if (generation === ownerRevision) playbackError();
         }
       }
@@ -338,7 +434,9 @@ export const usePlayerStore = defineStore("player", () => {
     operations = operations.then(async () => {
       if (!userId || owner !== userId || generation !== ownerRevision) return;
       error.value = "";
-      try { await action(); } catch {
+      try {
+        await action();
+      } catch {
         if (generation === ownerRevision) playbackError();
       }
     });
@@ -346,10 +444,22 @@ export const usePlayerStore = defineStore("player", () => {
   }
 
   return {
-    tracks, ids, order, id, current, queue, position, mode, volume, playing, error, setOwner,
-    play: (loadIds: () => Promise<string[]>, selected: string) => run(async () => {
-      await setQueue(await loadIds(), selected, true);
-    }),
+    tracks,
+    ids,
+    order,
+    id,
+    current,
+    queue,
+    position,
+    mode,
+    volume,
+    playing,
+    error,
+    setOwner,
+    play: (loadIds: () => Promise<string[]>, selected: string) =>
+      run(async () => {
+        await setQueue(await loadIds(), selected, true);
+      }),
     toggle: () => run(toggle),
     step: (direction: number) => run(() => step(direction)),
     seek: (time: number) => run(() => seek(time)),

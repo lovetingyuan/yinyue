@@ -9,7 +9,9 @@ export default defineServerAuth(() => {
   const clientSecret = config.googleClientSecret;
 
   return {
-    trustedOrigins: import.meta.dev ? [config.public.androidOrigin, androidDevOrigin] : [config.public.androidOrigin],
+    trustedOrigins: import.meta.dev
+      ? [config.public.androidOrigin, androidDevOrigin]
+      : [config.public.androidOrigin],
     plugins: [bearer({ requireSignature: true })],
     advanced: { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } },
     account: { encryptOAuthTokens: true },

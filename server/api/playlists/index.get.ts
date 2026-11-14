@@ -5,6 +5,10 @@ import { playlistFields } from "../../utils/library-playlists";
 
 export default defineEventHandler(async (event) => {
   const { user } = await requireUserSession(event, { user: { emailVerified: true } });
-  return libraryDatabase(event).select(playlistFields).from(playlists).where(eq(playlists.ownerId, user.id))
-    .orderBy(desc(playlists.createdAt), desc(playlists.id)).all();
+  return libraryDatabase(event)
+    .select(playlistFields)
+    .from(playlists)
+    .where(eq(playlists.ownerId, user.id))
+    .orderBy(desc(playlists.createdAt), desc(playlists.id))
+    .all();
 });

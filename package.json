@@ -1,16 +1,15 @@
 {
   "name": "inyue",
   "version": "1.0.0",
-  "description": "An Awesome music app",
-  "type": "module",
   "private": true,
-  "engines": {
-    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
-  },
+  "description": "An Awesome music app",
   "keywords": [
     "capacitor",
     "mobile"
   ],
+  "license": "ISC",
+  "author": "",
+  "type": "module",
   "scripts": {
     "dev": "nuxt dev --host 127.0.0.1 --port 5173 --strictPort --no-takeover",
     "dev:mobile": "nuxt dev --envName capacitor --host 127.0.0.1 --port 5174 --strictPort --no-takeover",
@@ -26,7 +25,8 @@
     "preview": "npm run build && wrangler dev",
     "postinstall": "nuxt prepare",
     "deploy": "npm run build && wrangler deploy",
-    "cf-typegen": "wrangler types --include-main-module=false"
+    "cf-typegen": "wrangler types --include-main-module=false",
+    "format": "oxfmt --write ."
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.1",
@@ -62,12 +62,14 @@
     "@types/node": "^26.6.6",
     "concurrently": "^10.0.7",
     "nitro-cloudflare-dev": "^0.2.2",
+    "oxfmt": "^0.78.0",
     "oxlint": "^1.93.0",
     "typescript": "~6.0.3",
     "vite-plugin-dom-source": "^1.0.2",
     "vue-tsc": "^3.3.14",
     "wrangler": "^4.160.0"
   },
-  "author": "",
-  "license": "ISC"
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
+  }
 }

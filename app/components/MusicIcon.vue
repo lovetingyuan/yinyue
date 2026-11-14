@@ -1,7 +1,22 @@
 <script setup lang="ts">
 import {
-  ArrowLeft, AudioLines, ChevronDown, Clock, Ellipsis, Image, ListMusic, Menu, Music,
-  Pause, Play, Plus, Search, SkipBack, SkipForward, Volume2, X,
+  ArrowLeft,
+  AudioLines,
+  ChevronDown,
+  Clock,
+  Ellipsis,
+  Image,
+  ListMusic,
+  Menu,
+  Music,
+  Pause,
+  Play,
+  Plus,
+  Search,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  X,
 } from "@lucide/vue";
 
 const icons = {
@@ -27,6 +42,11 @@ defineProps<{ name: keyof typeof icons }>();
 </script>
 
 <template>
-  <component :is="icons[name]" :stroke-width="1.8" aria-hidden="true" class="size-5 shrink-0"
-    :fill="['play', 'pause', 'previous', 'next'].includes(name) ? 'currentColor' : 'none'" />
+  <component
+    :is="icons[name]"
+    :stroke-width="1.8"
+    aria-hidden="true"
+    class="size-5 shrink-0"
+    :fill="['play', 'pause', 'previous', 'next'].includes(name) ? 'currentColor' : 'none'"
+  />
 </template>

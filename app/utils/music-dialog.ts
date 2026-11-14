@@ -5,10 +5,14 @@ export function showMusicDialog(dialog?: HTMLDialogElement | null) {
   dialog.showModal();
   const entry = { element: dialog };
   dialogs.push(entry);
-  dialog.addEventListener("close", () => {
-    const index = dialogs.indexOf(entry);
-    if (index !== -1) dialogs.splice(index, 1);
-  }, { once: true });
+  dialog.addEventListener(
+    "close",
+    () => {
+      const index = dialogs.indexOf(entry);
+      if (index !== -1) dialogs.splice(index, 1);
+    },
+    { once: true },
+  );
 }
 
 export function closeTopMusicDialog() {

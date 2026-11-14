@@ -1,4 +1,4 @@
-# inyue
+# inYue
 
 项目使用 Nuxt 和 Capacitor，支持 Web 和 Android。账号、会话、歌曲与歌单记录存入 D1，音频与封面存入私有 R2，由绑定会话的签名地址读取。实施与验收记录见 [PLAN.md](PLAN.md)。
 
@@ -76,21 +76,21 @@ $env:JAVA_HOME = 'C:\path\to\jdk-21'
 npm run android
 ```
 
-Android 应用 ID 仍为 `com.tingyuan.music`，应用名称为 `inyue`，原生系统栏继续跟随系统主题。
+Android 应用 ID 仍为 `com.tingyuan.music`，应用名称为 `inYue`，原生系统栏继续跟随系统主题。
 
 ## 服务配置
 
-| 变量 | 用途 |
-| --- | --- |
-| `NUXT_PUBLIC_SITE_URL` | Worker 对外的规范 HTTPS 地址。本地开发可用 `http://127.0.0.1:5173` |
-| `NUXT_BETTER_AUTH_SECRET` | 认证密钥，至少 32 个字符 |
-| `NUXT_PUBLIC_MOBILE_API_ORIGIN` | 打包 Android 时指定的 API HTTPS 源，例如与站点同源 |
-| `NUXT_PUBLIC_ANDROID_ORIGIN` | Worker 允许的 Android WebView 源，打包默认 `https://localhost`，热更新时配置为实际热更新源 |
-| `NUXT_RESEND_API_KEY`、`NUXT_MAIL_FROM` | Resend API 密钥和已验证域名下的发信地址 |
-| `NUXT_MAIL_PREVIEW` | 本地使用 `true`，验证和重置链接输出至本地日志 |
-| `NUXT_PUBLIC_GOOGLE_CLIENT_ID`、`NUXT_GOOGLE_CLIENT_SECRET` | 可选。Google Web OAuth 客户端 ID 与密钥 |
-| `NUXT_MEDIA_SIGNING_SECRET` | 媒体签名密钥，至少 32 个字符，与认证密钥分别生成 |
-| `NUXT_LIBRARY_QUOTA_BYTES` | 每用户存储额度，默认 1,073,741,824 字节 |
+| 变量                                                        | 用途                                                                                       |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `NUXT_PUBLIC_SITE_URL`                                      | Worker 对外的规范 HTTPS 地址。本地开发可用 `http://127.0.0.1:5173`                         |
+| `NUXT_BETTER_AUTH_SECRET`                                   | 认证密钥，至少 32 个字符                                                                   |
+| `NUXT_PUBLIC_MOBILE_API_ORIGIN`                             | 打包 Android 时指定的 API HTTPS 源，例如与站点同源                                         |
+| `NUXT_PUBLIC_ANDROID_ORIGIN`                                | Worker 允许的 Android WebView 源，打包默认 `https://localhost`，热更新时配置为实际热更新源 |
+| `NUXT_RESEND_API_KEY`、`NUXT_MAIL_FROM`                     | Resend API 密钥和已验证域名下的发信地址                                                    |
+| `NUXT_MAIL_PREVIEW`                                         | 本地使用 `true`，验证和重置链接输出至本地日志                                              |
+| `NUXT_PUBLIC_GOOGLE_CLIENT_ID`、`NUXT_GOOGLE_CLIENT_SECRET` | 可选。Google Web OAuth 客户端 ID 与密钥                                                    |
+| `NUXT_MEDIA_SIGNING_SECRET`                                 | 媒体签名密钥，至少 32 个字符，与认证密钥分别生成                                           |
+| `NUXT_LIBRARY_QUOTA_BYTES`                                  | 每用户存储额度，默认 1,073,741,824 字节                                                    |
 
 Nuxt 开发时将变量写入项目根目录的 `.env`，Wrangler 预览时可使用 `.dev.vars`。部署时使用 Worker 变量与 Cloudflare Secrets，并将 `wrangler.jsonc` 的 Worker 名称、`DB` 的数据库名称和 ID、`MEDIA` 的私有桶名称替换为实际资源。通过 `npx wrangler d1 migrations apply DB --remote --config wrangler.jsonc` 应用生产迁移。
 

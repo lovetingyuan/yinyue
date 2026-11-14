@@ -3,7 +3,9 @@ export function hasAccountMail(config: ReturnType<typeof useRuntimeConfig>) {
 }
 
 function localPreview(config: ReturnType<typeof useRuntimeConfig>) {
-  return config.mailPreview && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(config.public.siteUrl);
+  return (
+    config.mailPreview && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(config.public.siteUrl)
+  );
 }
 
 export async function sendAccountMail(to: string, subject: string, url: string) {

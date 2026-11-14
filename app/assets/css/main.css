@@ -26,11 +26,11 @@
   --color-warning-content: #fff;
   --color-error: #a83942;
   --color-error-content: #fff;
-  --radius-selector: .5rem;
-  --radius-field: .75rem;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.75rem;
   --radius-box: 1rem;
-  --size-selector: .25rem;
-  --size-field: .25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
@@ -61,11 +61,11 @@
   --color-warning-content: #3b2a0c;
   --color-error: #ffadb1;
   --color-error-content: #4b1e23;
-  --radius-selector: .5rem;
-  --radius-field: .75rem;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.75rem;
   --radius-box: 1rem;
-  --size-selector: .25rem;
-  --size-field: .25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
   --border: 1px;
   --depth: 0;
   --noise: 0;
@@ -106,7 +106,10 @@ body {
 
 @layer utilities {
   .app-height {
-    height: calc(100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) - var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)));
+    height: calc(
+      100dvh - var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) -
+        var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))
+    );
   }
 
   .safe-panel {

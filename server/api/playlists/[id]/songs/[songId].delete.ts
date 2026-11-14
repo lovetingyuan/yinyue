@@ -9,8 +9,15 @@ export default defineEventHandler(async (event) => {
   const playlistId = getRouterParam(event, "id") ?? "";
   const songId = getRouterParam(event, "songId") ?? "";
   await ownedPlaylist(db, user.id, playlistId);
-  await db.delete(memberships).where(and(
-    eq(memberships.ownerId, user.id), eq(memberships.playlistId, playlistId), eq(memberships.songId, songId),
-  )).run();
+  await db
+    .delete(memberships)
+    .where(
+      and(
+        eq(memberships.ownerId, user.id),
+        eq(memberships.playlistId, playlistId),
+        eq(memberships.songId, songId),
+      ),
+    )
+    .run();
   return sendNoContent(event);
 });

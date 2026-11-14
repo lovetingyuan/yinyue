@@ -4,8 +4,5 @@
   "categories": {
     "correctness": "error"
   },
-  "ignorePatterns": [
-    "android/**",
-    "worker-configuration.d.ts"
-  ]
+  "ignorePatterns": ["android/**", "worker-configuration.d.ts"]
 }

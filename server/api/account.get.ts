@@ -4,8 +4,11 @@ import { libraryDatabase, libraryQuota } from "../utils/library";
 
 export default defineEventHandler(async (event) => {
   const { user } = await requireUserSession(event, { user: { emailVerified: true } });
-  const usage = await libraryDatabase(event).select({ bytes: sum(files.bytes) }).from(files)
-    .where(eq(files.ownerId, user.id)).get();
+  const usage = await libraryDatabase(event)
+    .select({ bytes: sum(files.bytes) })
+    .from(files)
+    .where(eq(files.ownerId, user.id))
+    .get();
   return {
     id: user.id,
     name: user.name,

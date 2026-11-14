@@ -8,7 +8,10 @@ export default defineEventHandler(async (event) => {
   const db = libraryDatabase(event);
   const id = getRouterParam(event, "id") ?? "";
   const song = await ownedSong(db, user.id, id);
-  const rows = await db.select({ id: memberships.playlistId }).from(memberships)
-    .where(and(eq(memberships.ownerId, user.id), eq(memberships.songId, id))).all();
+  const rows = await db
+    .select({ id: memberships.playlistId })
+    .from(memberships)
+    .where(and(eq(memberships.ownerId, user.id), eq(memberships.songId, id)))
+    .all();
   return { ...song, playlistIds: rows.map((row) => row.id) };
 });
