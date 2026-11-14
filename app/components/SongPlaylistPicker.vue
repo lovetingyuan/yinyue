@@ -9,6 +9,8 @@ const titleId = useId();
 const selected = ref(new Set<string>());
 const saving = membership.isLoading;
 const error = ref("");
+const playlistErrors = ref(new Map<string, string>());
+const partialSave = ref(false);
 const changes = computed(() => {
   const saved = new Set(song.value?.playlistIds);
   return playlists.value.filter(({ id }) => selected.value.has(id) !== saved.has(id));
@@ -18,6 +20,8 @@ async function open() {
   if (dialog.value?.open || !song.value) return;
   selected.value = new Set(song.value.playlistIds);
   error.value = "";
+  playlistErrors.value.clear();
+  partialSave.value = false;
   await nextTick();
   showMusicDialog(dialog.value);
   if (list.value) list.value.scrollTop = 0;
@@ -31,11 +35,20 @@ async function save() {
   const songId = song.value?.id;
   if (saving.value || !songId || !changes.value.length) return;
   error.value = "";
+  playlistErrors.value.clear();
+  partialSave.value = false;
   const updates = changes.value.map(({ id }) => ({ id, included: selected.value.has(id) }));
   try {
     const result = await membership.mutateAsync({ songId, changes: updates });
     if (result.succeeded.length === updates.length) dialog.value?.close();
-    else error.value = result.succeeded.length ? `部分歌单已保存。${result.error}` : result.error;
+    else {
+      partialSave.value = result.succeeded.length > 0;
+      error.value = result.error;
+      for (const { id, message } of result.failed) {
+        if (playlists.value.some((item) => item.id === id)) playlistErrors.value.set(id, message);
+        else error.value ||= message;
+      }
+    }
   } catch (cause) {
     error.value = libraryError(cause);
   }
@@ -71,7 +84,12 @@ defineExpose({ open });
           <ul v-if="playlists.length" class="grid gap-1">
             <li v-for="item in playlists" :key="item.id">
               <label
-                class="flex min-h-14 cursor-pointer items-center gap-3 rounded-field border border-transparent px-2.5 py-2 hover:bg-base-200/80 focus-within:border-primary has-checked:bg-primary/10"
+                class="validator flex min-h-14 cursor-pointer items-center gap-3 rounded-field border px-2.5 py-2 hover:bg-base-200/80 has-checked:bg-primary/10"
+                :class="
+                  playlistErrors.has(item.id)
+                    ? 'border-error'
+                    : 'border-transparent focus-within:border-primary'
+                "
               >
                 <MusicArtwork :src="item.coverId ? covers[item.coverId] : undefined" class="w-9" />
                 <span class="min-w-0 flex-1 truncate text-sm font-medium" :title="item.name">{{
@@ -81,10 +99,23 @@ defineExpose({ open });
                   v-model="selected"
                   type="checkbox"
                   :value="item.id"
-                  class="checkbox checkbox-sm checkbox-primary shrink-0"
-                  @change="error = ''"
+                  class="checkbox checkbox-sm shrink-0"
+                  :class="playlistErrors.has(item.id) ? 'checkbox-error' : 'checkbox-primary'"
+                  :aria-invalid="playlistErrors.has(item.id)"
+                  :aria-describedby="
+                    playlistErrors.has(item.id) ? `${titleId}-${item.id}-error` : undefined
+                  "
+                  @change="playlistErrors.delete(item.id)"
                 />
               </label>
+              <p
+                v-if="playlistErrors.has(item.id)"
+                :id="`${titleId}-${item.id}-error`"
+                class="validator-hint mt-1 px-2.5"
+                role="alert"
+              >
+                {{ playlistErrors.get(item.id) }}
+              </p>
             </li>
           </ul>
           <p v-else class="px-2 py-8 text-center text-sm text-base-content/70">还没有自建歌单</p>
@@ -93,6 +124,7 @@ defineExpose({ open });
       <footer
         class="shrink-0 border-t border-base-300/70 px-4 pt-3 pb-[calc(0.75rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] sm:px-5"
       >
+        <p v-if="partialSave" class="mb-2 text-sm" role="status">部分歌单已保存。</p>
         <p v-if="error" class="mb-2 text-sm text-error" role="alert">{{ error }}</p>
         <div class="flex justify-end gap-2">
           <button

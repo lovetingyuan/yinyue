@@ -63,11 +63,11 @@ npm run android -- --target <ID>
 
 移动端使用 `capacitor` 配置环境关闭 SSR，静态资源独立生成到 `.output-capacitor/public/`，该路径也是 Capacitor 的 `webDir`，与 Web 构建产物互不覆盖。
 
-`npm run android` 启动独立的 Nuxt 移动端开发服务，等页面和 Vite 客户端就绪后安装调试包。WebView 通过 ADB 转发加载 `http://127.0.0.1:5174`，页面、热更新和默认本地 API 都使用这个地址。Web 开发仍使用 5173。可通过 `NUXT_PUBLIC_MOBILE_API_ORIGIN` 指定其他后端，该后端需允许热更新页面的源。
+`npm run android` 启动 Nuxt 移动端开发服务，或复用本项目已启动的移动服务，等页面和 Vite 客户端就绪后安装调试包。WebView 通过 ADB 转发加载 `http://127.0.0.1:5174`，页面、热更新和默认本地 API 都使用这个地址。若其他程序占用 5174，请先释放该端口。Web 开发使用 5173。可通过 `NUXT_PUBLIC_MOBILE_API_ORIGIN` 指定其他后端，该后端需允许热更新页面的源。
 
 运行前请连接并授权手机，或先启动模拟器。连接多台设备时使用 `--target`。Windows PowerShell 可用 `npm.cmd run android -- --target <ID>`，确保参数传给脚本。USB 重连后，若服务还在运行，可用 SDK 自带的 `adb reverse tcp:5174 tcp:5174` 恢复转发，再重开 App。
 
-保持终端运行即可使用热更新，按 Ctrl+C 停止。原生代码或插件变更后重新运行命令。在电脑 Chrome 打开 `chrome://inspect/#devices`，点击应用 WebView 的 **inspect** 调试。
+保持启动移动开发服务的终端运行即可使用热更新，按 Ctrl+C 停止服务。复用服务时，`npm run android` 安装并启动 App 后会退出。原生代码或插件变更后重新运行命令。在电脑 Chrome 打开 `chrome://inspect/#devices`，点击应用 WebView 的 **inspect** 调试。
 
 若默认 Java 是 17，可在 PowerShell 中临时切换到已安装的 JDK 21：
 

@@ -5,6 +5,13 @@ import { libraryDatabase } from "./library";
 const { ownerId: _ownerId, ...fields } = getTableColumns(playlists);
 export { fields as playlistFields };
 
+export function handlePlaylistWriteError(cause: unknown): never {
+  if (cause instanceof Error && /PLAYLIST_NAME_TAKEN/.test(`${cause.message} ${cause.cause}`)) {
+    throw createError({ statusCode: 409, statusMessage: "PLAYLIST_NAME_TAKEN" });
+  }
+  throw cause;
+}
+
 export function playlistOwner(userId: string, id: string) {
   return and(eq(playlists.ownerId, userId), eq(playlists.id, id));
 }

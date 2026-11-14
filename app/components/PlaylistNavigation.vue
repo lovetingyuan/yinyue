@@ -16,27 +16,23 @@ async function select(id: string) {
   library.selectPlaylist(id);
   app.drawerOpen = false;
 }
-const sections = [
-  { id: "", name: "所有歌曲", icon: Music },
-  { id: "default", name: "默认歌单", icon: ListMusic },
-] as const;
 </script>
 
 <template>
-  <div class="grid content-start gap-1">
+  <div
+    class="grid content-start gap-1 [&_button:active]:translate-none [&_button:focus-visible]:-outline-offset-2"
+  >
     <button
-      v-for="item in sections"
-      :key="item.id"
       type="button"
-      class="btn btn-ghost justify-start gap-3 px-3 font-medium"
-      :class="{ 'bg-primary/10 text-primary': selected === item.id }"
-      :aria-current="selected === item.id ? 'true' : undefined"
-      @click="select(item.id)"
+      class="btn btn-ghost justify-start gap-3 border-transparent px-3 font-medium"
+      :class="selected === '' ? 'bg-primary/10 text-primary' : 'hover:bg-base-content/5'"
+      :aria-current="selected === '' ? 'true' : undefined"
+      @click="select('')"
     >
-      <component :is="item.icon" class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
-      {{ item.name }}
+      <Music class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
+      所有歌曲
     </button>
-    <div class="mt-5 flex items-center justify-between gap-2 pl-3">
+    <div class="mt-2 flex items-center justify-between gap-2 pl-3">
       <span class="text-xs font-semibold text-base-content/65">我的歌单</span>
       <button
         type="button"
@@ -48,15 +44,25 @@ const sections = [
         <Plus class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
       </button>
     </div>
+    <button
+      type="button"
+      class="btn btn-ghost justify-start gap-3 border-transparent px-3 font-medium"
+      :class="selected === 'default' ? 'bg-primary/10 text-primary' : 'hover:bg-base-content/5'"
+      :aria-current="selected === 'default' ? 'true' : undefined"
+      @click="select('default')"
+    >
+      <ListMusic class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
+      默认歌单
+    </button>
     <div
       v-for="item in playlists"
       :key="item.id"
       class="flex items-center rounded-field"
-      :class="{ 'bg-primary/10 text-primary': selected === item.id }"
+      :class="selected === item.id ? 'bg-primary/10 text-primary' : 'hover:bg-base-content/5'"
     >
       <button
         type="button"
-        class="btn btn-ghost min-w-0 flex-1 justify-start gap-3 px-3 font-medium"
+        class="btn btn-ghost min-w-0 flex-1 justify-start gap-3 border-transparent bg-transparent px-3 font-medium text-current"
         :aria-current="selected === item.id ? 'true' : undefined"
         @click="select(item.id)"
       >
@@ -65,7 +71,7 @@ const sections = [
       </button>
       <button
         type="button"
-        class="btn btn-ghost btn-circle btn-sm mr-1"
+        class="btn btn-ghost btn-circle btn-sm mr-1 border-transparent bg-transparent text-current hover:text-primary"
         :aria-label="`编辑${item.name}`"
         @click="emit('edit', item)"
       >

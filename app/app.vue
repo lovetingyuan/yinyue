@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AudioLines, Menu, Plus, X } from "@lucide/vue";
+import { Menu, Plus, X } from "@lucide/vue";
 import { useMutationCache, useQuery, useQueryCache } from "@pinia/colada";
 import { useMediaQuery, useOnline, useStorage } from "@vueuse/core";
 import { storeToRefs } from "pinia";
@@ -35,6 +35,9 @@ const password = ref("");
 const resetToken = ref("");
 const notice = ref("");
 const error = ref("");
+const accountFields = reactive({ name: "", email: "", password: "" });
+const credentialsInvalid = ref(false);
+const emailInput = useTemplateRef<HTMLInputElement>("emailInput");
 const busy = ref(false);
 const mounted = ref(false);
 const signingOut = ref(false);
@@ -136,12 +139,39 @@ watch([userId, offline, () => accountQuery.isLoading.value], ([id, isOffline, ch
   if (!id || isOffline) void libraryPlayer.setOwner("");
   else if (!checking) void libraryPlayer.setOwner(id);
 });
+watch(mode, () => {
+  clearAccountFields();
+  error.value = "";
+});
+
+function clearCredentialsError() {
+  if (!credentialsInvalid.value) return;
+  credentialsInvalid.value = false;
+  accountFields.password = "";
+}
+
+function clearAccountFields() {
+  accountFields.name = "";
+  accountFields.email = "";
+  accountFields.password = "";
+  credentialsInvalid.value = false;
+}
+
+function validateEmail() {
+  accountFields.email = !email.value
+    ? "请填写邮箱。"
+    : emailInput.value?.validity.typeMismatch
+      ? "请输入有效的邮箱地址。"
+      : "";
+  return !accountFields.email;
+}
 
 async function run(action: () => Promise<void>) {
   if (busy.value) return;
   busy.value = true;
   notice.value = "";
   error.value = "";
+  clearAccountFields();
   try {
     await action();
   } catch (cause) {
@@ -149,18 +179,48 @@ async function run(action: () => Promise<void>) {
       typeof cause === "object" && cause !== null && "data" in cause ? cause.data : undefined;
     const code =
       typeof data === "object" && data !== null && "code" in data ? data.code : undefined;
-    error.value =
-      code === "EMAIL_NOT_VERIFIED"
-        ? "请先验证邮箱。"
-        : code === "INVALID_EMAIL_OR_PASSWORD"
-          ? "邮箱或密码错误。"
-          : "操作失败，请检查网络和输入后重试。";
+    if (action === submit || action === resend) {
+      switch (code) {
+        case "INVALID_EMAIL":
+          accountFields.email = "请输入有效的邮箱地址。";
+          return;
+        case "EMAIL_NOT_VERIFIED":
+          accountFields.email = "请先验证邮箱。";
+          return;
+        case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
+          accountFields.email = "该邮箱已注册。";
+          return;
+        case "INVALID_EMAIL_OR_PASSWORD":
+          credentialsInvalid.value = true;
+          accountFields.password = "邮箱或密码错误。";
+          return;
+        case "PASSWORD_TOO_SHORT":
+          accountFields.password = "密码至少需要 8 个字符。";
+          return;
+        case "PASSWORD_TOO_LONG":
+          accountFields.password = "密码最多允许 128 个字符。";
+          return;
+        case "INVALID_TOKEN":
+          error.value = "重置链接无效或已过期，请重新发送重置邮件。";
+          return;
+      }
+    }
+    error.value = "操作失败，请检查网络和输入后重试。";
   } finally {
     busy.value = false;
   }
 }
 
 async function submit() {
+  if (mode.value !== "reset") validateEmail();
+  if (mode.value === "register" && !name.value) accountFields.name = "请填写昵称。";
+  if (mode.value !== "forgot") {
+    if (!password.value) accountFields.password = "请填写密码。";
+    else if (password.value.length < 8) accountFields.password = "密码至少需要 8 个字符。";
+    else if (mode.value !== "login" && password.value.length > 128)
+      accountFields.password = "密码最多允许 128 个字符。";
+  }
+  if (accountFields.name || accountFields.email || accountFields.password) return;
   const submittedPassword = password.value;
   password.value = "";
   if (mode.value === "register") {
@@ -188,10 +248,7 @@ async function submit() {
 }
 
 async function resend() {
-  if (!email.value) {
-    notice.value = "请填写邮箱。";
-    return;
-  }
+  if (!validateEmail()) return;
   await execute({ type: "resend", email: email.value });
   notice.value = "请查收验证邮件。";
 }
@@ -296,9 +353,7 @@ onBeforeUnmount(() => {
             aria-label="inYue 曲库"
             @click="drawerOpen = false"
           >
-            <span class="grid size-9 place-items-center rounded-xl bg-primary text-primary-content"
-              ><AudioLines class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true"
-            /></span>
+            <img src="/assets/icon/inyue.svg" width="36" height="36" class="shrink-0" alt="" />
             <span class="text-xl font-bold tracking-tight">inYue</span>
           </NuxtLink>
           <button
@@ -320,7 +375,10 @@ onBeforeUnmount(() => {
           >
             <Plus class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" /> 新增歌曲
           </NuxtLink>
-          <div id="library-playlists" class="min-h-0 overflow-y-auto overscroll-contain" />
+          <div
+            id="library-playlists"
+            class="min-h-0 overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-base-content/50 scrollbar-track-transparent"
+          />
         </nav>
         <div class="mt-auto shrink-0 border-t border-base-300 p-3">
           <button
@@ -405,9 +463,7 @@ onBeforeUnmount(() => {
       <div class="card w-full max-w-sm">
         <div class="card-body gap-4 p-2 sm:p-4">
           <header class="mb-4 flex items-center gap-3">
-            <span class="grid size-11 place-items-center rounded-xl bg-primary text-primary-content"
-              ><AudioLines class="size-6 shrink-0" :stroke-width="1.8" aria-hidden="true"
-            /></span>
+            <img src="/assets/icon/inyue.svg" width="44" height="44" class="shrink-0" alt="" />
             <h1 class="text-3xl font-bold tracking-tight">inYue</h1>
           </header>
           <p v-if="offline" role="status">当前离线，连接网络后可访问音乐库。</p>
@@ -437,33 +493,89 @@ onBeforeUnmount(() => {
             >
               {{ mode === "forgot" ? "找回密码" : "重置密码" }}
             </h2>
-            <form class="grid gap-3" @submit.prevent="run(submit)">
-              <label v-if="mode === 'register'" class="grid gap-1.5 text-sm font-medium"
-                >昵称<input
+            <form class="grid gap-3" novalidate @submit.prevent="run(submit)">
+              <div v-if="mode === 'register'" class="grid gap-1.5 text-sm">
+                <label for="account-name" class="font-medium">昵称</label>
+                <input
+                  id="account-name"
                   v-model.trim="name"
-                  class="input w-full"
+                  class="input validator w-full"
                   autocomplete="nickname"
                   required
-              /></label>
-              <label v-if="mode !== 'reset'" class="grid gap-1.5 text-sm font-medium"
-                >邮箱<input
+                  :disabled="busy"
+                  :aria-invalid="!!accountFields.name"
+                  :aria-describedby="accountFields.name ? 'account-name-error' : undefined"
+                  @input="accountFields.name = ''"
+                />
+                <p
+                  v-if="accountFields.name"
+                  id="account-name-error"
+                  class="validator-hint mt-0"
+                  role="alert"
+                >
+                  {{ accountFields.name }}
+                </p>
+              </div>
+              <div v-if="mode !== 'reset'" class="grid gap-1.5 text-sm">
+                <label for="account-email" class="font-medium">邮箱</label>
+                <input
                   id="account-email"
+                  ref="emailInput"
                   v-model.trim="email"
                   type="email"
-                  class="input w-full"
+                  class="input validator w-full"
                   autocomplete="email"
                   required
-              /></label>
-              <label v-if="mode !== 'forgot'" class="grid gap-1.5 text-sm font-medium"
-                >密码<input
+                  :disabled="busy"
+                  :aria-invalid="!!accountFields.email || credentialsInvalid"
+                  :aria-describedby="
+                    accountFields.email
+                      ? 'account-email-error'
+                      : credentialsInvalid
+                        ? 'account-password-error'
+                        : undefined
+                  "
+                  @input="
+                    accountFields.email = '';
+                    clearCredentialsError();
+                  "
+                />
+                <p
+                  v-if="accountFields.email"
+                  id="account-email-error"
+                  class="validator-hint mt-0"
+                  role="alert"
+                >
+                  {{ accountFields.email }}
+                </p>
+              </div>
+              <div v-if="mode !== 'forgot'" class="grid gap-1.5 text-sm">
+                <label for="account-password" class="font-medium">密码</label>
+                <input
                   id="account-password"
                   v-model="password"
                   type="password"
-                  class="input w-full"
+                  class="input validator w-full"
                   :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
                   required
                   minlength="8"
-              /></label>
+                  :disabled="busy"
+                  :aria-invalid="!!accountFields.password"
+                  :aria-describedby="accountFields.password ? 'account-password-error' : undefined"
+                  @input="
+                    accountFields.password = '';
+                    clearCredentialsError();
+                  "
+                />
+                <p
+                  v-if="accountFields.password"
+                  id="account-password-error"
+                  class="validator-hint mt-0"
+                  role="alert"
+                >
+                  {{ accountFields.password }}
+                </p>
+              </div>
               <button id="account-submit" class="btn btn-primary mt-2" :disabled="busy">
                 {{
                   { login: "登录", register: "注册", forgot: "发送重置邮件", reset: "保存密码" }[

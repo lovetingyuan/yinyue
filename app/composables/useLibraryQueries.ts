@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery, useQueryCache, useQueryState } from "@pinia/colada";
-import type { MediaAuthorization, Playlist, Song, SongDetails } from "~~/shared/types/library";
+import type { MediaAuthorization, Playlist, SongDetails, SongPage } from "~~/shared/types/library";
 import { libraryKeys } from "~/utils/music-query-keys";
 
 export function useLibraryQueries() {
@@ -9,7 +9,7 @@ export function useLibraryQueries() {
   const cache = useQueryCache();
   const { request } = useMusicApi();
   const enabled = () => Boolean(session.userId) && !app.offline;
-  const songs = useInfiniteQuery<{ items: Song[]; nextOffset: number | null }, Error, number>(
+  const songs = useInfiniteQuery<SongPage, Error, number>(
     () => {
       const filters = library.filters;
       return {
@@ -17,7 +17,7 @@ export function useLibraryQueries() {
         enabled: enabled(),
         initialPageParam: 0,
         query: async ({ pageParam, signal }) => {
-          const { _data } = await request<{ items: Song[]; nextOffset: number | null }>(
+          const { _data } = await request<SongPage>(
             "/api/songs",
             {
               query: { ...filters, offset: pageParam },

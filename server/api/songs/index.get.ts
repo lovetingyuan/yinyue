@@ -62,5 +62,9 @@ export default defineEventHandler(async (event) => {
     .limit(51)
     .offset(offset)
     .all();
-  return { items: page.slice(0, 50), nextOffset: page.length > 50 ? offset + 50 : null };
+  const nextOffset = page.length > 50 ? offset + 50 : null;
+  const total = term && offset === 0
+    ? (nextOffset === null ? page.length : await db.$count(songs, where))
+    : undefined;
+  return { items: page.slice(0, 50), nextOffset, total };
 });

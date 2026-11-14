@@ -1,7 +1,12 @@
 import { playlists } from "../../database/library-schema";
 import { libraryDatabase } from "../../utils/library";
 import { cleanupUserFiles, withLibraryFiles } from "../../utils/library-files";
-import { ownedPlaylist, playlistFields, playlistOwner } from "../../utils/library-playlists";
+import {
+  handlePlaylistWriteError,
+  ownedPlaylist,
+  playlistFields,
+  playlistOwner,
+} from "../../utils/library-playlists";
 import { coverUpload, formText, uploadForm } from "../../utils/library-upload";
 
 export default defineEventHandler(async (event) => {
@@ -22,7 +27,7 @@ export default defineEventHandler(async (event) => {
       .get();
     if (!updated) throw createError({ statusCode: 404, statusMessage: "PLAYLIST_NOT_FOUND" });
     return updated;
-  });
+  }).catch(handlePlaylistWriteError);
   await cleanupUserFiles(event, user.id);
   return playlist;
 });

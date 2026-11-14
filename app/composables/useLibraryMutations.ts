@@ -96,6 +96,7 @@ export function useSongMembershipSave() {
       { generation },
     ) {
       const succeeded: typeof changes = [];
+      const failed: { id: string; message: string }[] = [];
       let error = "";
       for (const change of changes) {
         if (session.generation !== generation) break;
@@ -105,10 +106,15 @@ export function useSongMembershipSave() {
           });
           succeeded.push(change);
         } catch (cause) {
-          error ||= libraryError(cause);
+          const message = libraryError(cause);
+          if (libraryErrorCode(cause) === "PLAYLIST_NOT_FOUND") {
+            failed.push({ id: change.id, message });
+          } else {
+            error ||= message;
+          }
         }
       }
-      return { succeeded, error };
+      return { succeeded, failed, error };
     },
     onMutate: () => ({ userId: session.userId, generation: session.generation }),
     async onSuccess({ succeeded }, { songId }, { userId, generation }) {

@@ -11,6 +11,10 @@ const loading = computed(
   () => !song.value && (!queryError.value || asyncStatus.value === "loading"),
 );
 const error = computed(() => (queryError.value ? libraryError(queryError.value) : ""));
+const albumAndYear = computed(() => {
+  const { album, year } = song.value ?? {};
+  return [album, year ? `${year}年` : ""].filter(Boolean).join(" · ");
+});
 const emit = defineEmits<{ close: []; edit: [Song]; delete: []; playlists: [] }>();
 const playlistButton = useTemplateRef("playlistButton");
 </script>
@@ -40,11 +44,11 @@ const playlistButton = useTemplateRef("playlistButton");
           </h2>
           <p class="mt-1 truncate text-sm font-medium" :title="song.artist">{{ song.artist }}</p>
           <p
-            v-if="song.album || song.year"
+            v-if="albumAndYear"
             class="mt-0.5 truncate text-xs text-base-content/70"
-            :title="[song.album, song.year].filter(Boolean).join(' · ')"
+            :title="albumAndYear"
           >
-            {{ [song.album, song.year].filter(Boolean).join(" · ") }}
+            {{ albumAndYear }}
           </p>
         </div>
       </div>

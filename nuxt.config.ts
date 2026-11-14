@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { vueVitePlugin } from "vite-plugin-dom-source";
+import webManifest from "./public/manifest.json";
 import { defaultQuotaBytes } from "./shared/library-limits";
 
 const require = createRequire(import.meta.url);
@@ -19,7 +20,11 @@ export default defineNuxtConfig({
     head: {
       title: "inYue",
       viewport: "width=device-width, initial-scale=1.0, viewport-fit=cover",
-      link: [{ rel: "icon", type: "image/x-icon", href: "/favicon.ico" }],
+      link: [
+        { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
+        { rel: "icon", type: "image/svg+xml", sizes: "any", href: "/assets/icon/inyue.svg" },
+        { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+      ],
       meta: [
         {
           name: "theme-color",
@@ -67,17 +72,7 @@ export default defineNuxtConfig({
 
   pwa: {
     registerType: "autoUpdate",
-    manifest: {
-      id: "/",
-      name: "私人音乐库",
-      short_name: "音乐库",
-      lang: "zh-CN",
-      start_url: "/",
-      display: "standalone",
-      theme_color: "#16171d",
-      background_color: "#16171d",
-      icons: [{ src: "/assets/imgs/logo.png", sizes: "512x512", type: "image/png" }],
-    },
+    manifest: { ...webManifest, display: "standalone" },
     generateSW: {
       cleanURLs: false,
       globPatterns: ["offline.html", "assets/imgs/logo.png", "_nuxt/**/*.{js,css,woff2}"],

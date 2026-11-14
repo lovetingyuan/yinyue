@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "nuxt dev --host 127.0.0.1 --port 5173 --strictPort --no-takeover",
     "dev:mobile": "nuxt dev --envName capacitor --host 127.0.0.1 --port 5174 --strictPort --no-takeover",
-    "android": "concurrently --kill-others-on-fail -P -i --default-input-target 1 \"npm run dev:mobile\" \"node scripts/android-dev.mjs {@}\" --",
+    "android": "node scripts/android-dev.mjs",
     "android:devices": "cap run android --list",
     "start": "npm run dev",
     "build": "nuxt build",

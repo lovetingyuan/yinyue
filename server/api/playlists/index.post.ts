@@ -1,7 +1,7 @@
 import { playlists } from "../../database/library-schema";
 import { libraryDatabase } from "../../utils/library";
 import { withLibraryFiles } from "../../utils/library-files";
-import { playlistFields } from "../../utils/library-playlists";
+import { handlePlaylistWriteError, playlistFields } from "../../utils/library-playlists";
 import { coverUpload, formText, uploadForm } from "../../utils/library-upload";
 
 export default defineEventHandler(async (event) => {
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
       })
       .returning(playlistFields)
       .get(),
-  );
+  ).catch(handlePlaylistWriteError);
   setResponseStatus(event, 201);
   return playlist;
 });

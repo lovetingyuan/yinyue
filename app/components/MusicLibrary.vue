@@ -2,6 +2,7 @@
 import { AudioLines, Clock, Ellipsis, Music, Play, Search, Signal, X } from "@lucide/vue";
 import { useObjectUrl } from "@vueuse/core";
 import { storeToRefs } from "pinia";
+import { coverMaxBytes } from "~~/shared/library-limits";
 import type { Playlist, Song } from "~~/shared/types/library";
 
 const library = useLibraryStore();
@@ -13,6 +14,7 @@ const { songs: songQuery, playlists: playlistQuery, play } = useLibraryQueries()
 const { playlists } = usePlaylistState();
 const { data: details } = useSongDetailsState();
 const songs = computed(() => songQuery.data.value?.pages.flatMap(({ items }) => items) ?? []);
+const searchTotal = computed(() => songQuery.data.value?.pages[0]?.total);
 const { hasNextPage, loadNextPage, isLoading: loading } = songQuery;
 const playlistCovers = useCoverQuery(() =>
   playlists.value.flatMap(({ coverId }) => (coverId ? [coverId] : [])),
@@ -38,6 +40,7 @@ const deleting = ref<"song" | "playlist">();
 const playlistName = ref("");
 const playlistEdit = ref<Playlist>();
 const playlistCover = shallowRef<File>();
+const playlistCoverInput = useTemplateRef<HTMLInputElement>("playlistCoverInput");
 const playlistCoverPreview = useObjectUrl(() =>
   panel.value === "playlist" && playlistEdit.value ? playlistCover.value : undefined,
 );
@@ -46,6 +49,8 @@ const playlistSave = usePlaylistSave();
 const libraryDelete = useLibraryDelete();
 const pending = computed(() => playlistSave.isLoading.value || libraryDelete.isLoading.value);
 const dialogError = ref("");
+const playlistErrors = reactive({ name: "", cover: "" });
+const playlistFieldId = useId();
 const title = computed(() =>
   term.value
     ? "搜索结果"
@@ -95,17 +100,23 @@ function openPlaylist(item?: Playlist) {
   playlistName.value = item?.name ?? "";
   playlistCover.value = undefined;
   removeCover.value = false;
+  playlistErrors.name = "";
+  playlistErrors.cover = "";
   show("playlist");
 }
 
 function selectPlaylistCover(event: Event) {
   playlistCover.value =
     event.target instanceof HTMLInputElement ? event.target.files?.[0] : undefined;
+  playlistErrors.cover =
+    (playlistCover.value?.size ?? 0) > coverMaxBytes ? "封面不能超过 1 MiB。" : "";
 }
 
 function clearPlaylistCover() {
   playlistCover.value = undefined;
   removeCover.value = Boolean(playlistEdit.value?.coverId);
+  playlistErrors.cover = "";
+  if (playlistCoverInput.value) playlistCoverInput.value.value = "";
 }
 
 async function update(action: () => Promise<void>) {
@@ -119,12 +130,22 @@ async function update(action: () => Promise<void>) {
 }
 
 async function savePlaylist() {
+  if (pending.value) return;
+  dialogError.value = "";
+  if (!playlistName.value) playlistErrors.name = "请填写歌单名称。";
+  if (!playlistName.value || (playlistCover.value?.size ?? 0) > coverMaxBytes) return;
   const body = new FormData();
   body.set("name", playlistName.value);
   if (playlistCover.value) body.set("cover", playlistCover.value);
   else if (removeCover.value) body.set("removeCover", "true");
-  await playlistSave.mutateAsync({ playlistId: playlistEdit.value?.id, body });
-  dialog.value?.close();
+  try {
+    await playlistSave.mutateAsync({ playlistId: playlistEdit.value?.id, body });
+    dialog.value?.close();
+  } catch (cause) {
+    const { field, message } = libraryFormError(cause);
+    if (field === "name" || field === "cover") playlistErrors[field] = message;
+    else dialogError.value = message;
+  }
 }
 
 async function remove() {
@@ -182,7 +203,12 @@ onBeforeUnmount(() => {
             >
               {{ title }}
             </h2>
-            <p v-if="term" class="mt-1 truncate text-sm text-base-content/70">“{{ term }}”</p>
+            <p v-if="term" class="mt-1 flex items-baseline gap-2 text-sm text-base-content/70">
+              <span class="truncate">“{{ term }}”</span>
+              <span v-if="searchTotal !== undefined" class="shrink-0"
+                >共 {{ searchTotal }} 首歌曲</span
+              >
+            </p>
             <p v-else-if="songs.length" class="mt-1 text-sm text-base-content/70">
               {{ songs.length }}{{ hasNextPage ? "+" : "" }} 首歌曲
             </p>
@@ -223,9 +249,9 @@ onBeforeUnmount(() => {
             aria-hidden="true"
           />
           <p>{{ term ? "没有匹配的歌曲" : "这个歌单还没有歌曲" }}</p>
-          <NuxtLink v-if="!term" to="/songs/new" class="btn btn-ghost btn-sm text-primary"
+          <!-- <NuxtLink v-if="!term" to="/songs/new" class="btn btn-ghost btn-sm text-primary"
             >新增歌曲</NuxtLink
-          >
+          > -->
         </div>
         <div v-if="songs.length" class="mt-4">
           <div
@@ -296,7 +322,9 @@ onBeforeUnmount(() => {
                     :stroke-width="2"
                     aria-hidden="true"
                   />
-                  <span v-else-if="song.duration != null">{{ formatMusicTime(song.duration) }}</span>
+                  <span v-else-if="song.duration != null">{{
+                    formatMusicTime(song.duration)
+                  }}</span>
                 </span>
               </button>
               <button
@@ -347,22 +375,38 @@ onBeforeUnmount(() => {
         <form
           v-else-if="panel === 'playlist'"
           class="grid gap-3"
-          @submit.prevent="update(savePlaylist)"
+          novalidate
+          @submit.prevent="savePlaylist"
         >
           <h2 class="text-lg font-semibold">{{ playlistEdit ? "编辑歌单" : "新建歌单" }}</h2>
-          <label class="grid gap-1"
-            >歌单名称<input
+          <div class="grid gap-1">
+            <label :for="`${playlistFieldId}-name`">歌单名称</label>
+            <input
+              :id="`${playlistFieldId}-name`"
               v-model.trim="playlistName"
-              class="input w-full"
+              class="input validator w-full"
               required
               maxlength="250"
-          /></label>
-          <div
-            v-if="playlistEdit && (playlistCover || (playlistEdit.coverId && !removeCover))"
-            class="grid justify-items-start gap-1"
-          >
-            <span>封面</span>
-            <div class="relative">
+              :disabled="pending"
+              :aria-invalid="!!playlistErrors.name"
+              :aria-describedby="playlistErrors.name ? `${playlistFieldId}-name-error` : undefined"
+              @input="playlistErrors.name = ''"
+            />
+            <p
+              v-if="playlistErrors.name"
+              :id="`${playlistFieldId}-name-error`"
+              class="validator-hint mt-0"
+              role="alert"
+            >
+              {{ playlistErrors.name }}
+            </p>
+          </div>
+          <div class="grid gap-1">
+            <label :for="`${playlistFieldId}-cover`">封面</label>
+            <div
+              v-if="playlistEdit && (playlistCover || (playlistEdit.coverId && !removeCover))"
+              class="relative w-fit"
+            >
               <MusicArtwork
                 :src="
                   playlistCoverPreview ??
@@ -380,28 +424,45 @@ onBeforeUnmount(() => {
                 <X class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
               </button>
             </div>
-          </div>
-          <label v-else class="grid gap-1"
-            >封面<input
-              class="file-input w-full"
+            <input
+              :id="`${playlistFieldId}-cover`"
+              ref="playlistCoverInput"
+              class="file-input validator w-full"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               :disabled="pending"
+              :aria-invalid="!!playlistErrors.cover"
+              :aria-describedby="
+                playlistErrors.cover ? `${playlistFieldId}-cover-error` : undefined
+              "
               @change="selectPlaylistCover"
-          /></label>
+            />
+            <p
+              v-if="playlistErrors.cover"
+              :id="`${playlistFieldId}-cover-error`"
+              class="validator-hint mt-0"
+              role="alert"
+            >
+              {{ playlistErrors.cover }}
+            </p>
+          </div>
+          <p v-if="dialogError" class="text-sm text-error" role="alert">{{ dialogError }}</p>
           <div class="flex flex-wrap justify-end gap-2">
             <button
               v-if="playlistEdit"
               type="button"
               class="btn btn-error btn-outline mr-auto"
+              :disabled="pending"
               @click="
+                dialogError = '';
                 deleting = 'playlist';
                 panel = 'delete';
               "
             >
               删除歌单
             </button>
-            <button type="button" class="btn" @click="dialog?.close()">取消</button
+            <button type="button" class="btn" :disabled="pending" @click="dialog?.close()">
+              取消</button
             ><button class="btn btn-primary" :disabled="pending">保存</button>
           </div>
         </form>
@@ -424,6 +485,7 @@ onBeforeUnmount(() => {
             }}
           </h2>
           <p v-if="deleting === 'playlist'">歌单中的歌曲会保留。</p>
+          <p v-if="dialogError" class="text-sm text-error" role="alert">{{ dialogError }}</p>
           <div class="flex justify-end gap-2">
             <button class="btn" :disabled="pending" @click="dialog?.close()">取消</button>
             <button class="btn btn-error" :disabled="pending" @click="update(remove)">
@@ -431,9 +493,6 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
-        <p v-if="dialogError && panel !== 'details'" class="mt-2 text-error" role="alert">
-          {{ dialogError }}
-        </p>
       </div>
       <form method="dialog" class="modal-backdrop">
         <button tabindex="-1" :disabled="pending || songEditor?.busy">关闭曲库弹窗</button>

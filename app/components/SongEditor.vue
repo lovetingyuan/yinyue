@@ -29,6 +29,12 @@ const oversizedCover = ref(false);
 const reading = ref(false);
 const busy = saveSong.isLoading;
 const error = ref("");
+const fieldId = useId();
+const fieldErrors = reactive<Partial<Record<keyof typeof form | "audio" | "cover", string>>>({});
+const audioNotice = ref("");
+const coverError = computed(() =>
+  oversizedCover.value ? "封面超过 1 MiB，请移除或重新选择。" : fieldErrors.cover,
+);
 const fields = [
   { name: "title", label: "歌曲名" },
   { name: "artist", label: "歌手" },
@@ -43,13 +49,19 @@ async function selectAudio(event: Event) {
   audio.value = undefined;
   cover.value = undefined;
   oversizedCover.value = false;
+  fieldErrors.audio = "";
+  fieldErrors.cover = "";
+  audioNotice.value = "";
   error.value = "";
   if (!file) return;
   if (file.size > audioMaxBytes) {
-    error.value = "MP3 不能超过 15 MiB。";
+    fieldErrors.audio = "MP3 不能超过 15 MiB。";
+    if (audioInput.value) audioInput.value.value = "";
     return;
   }
   audio.value = file;
+  for (const { name } of fields) fieldErrors[name] = "";
+  fieldErrors.description = "";
   form.artist = "";
   form.album = "";
   form.year = "";
@@ -84,7 +96,7 @@ async function selectAudio(event: Event) {
       }
     }
   } catch {
-    error.value = "无法读取 ID3，可以手动填写资料。";
+    audioNotice.value = "无法读取 ID3，可以手动填写资料。";
   } finally {
     reading.value = false;
   }
@@ -95,18 +107,30 @@ function selectCoverFile(event: Event) {
   cover.value = event.target.files?.[0];
   event.target.value = "";
   oversizedCover.value = (cover.value?.size ?? 0) > coverMaxBytes;
+  fieldErrors.cover = "";
   removeCover.value = false;
 }
 
 function clearCover() {
   cover.value = undefined;
   oversizedCover.value = false;
+  fieldErrors.cover = "";
   removeCover.value = true;
 }
 
 async function save() {
-  if (busy.value || reading.value || (!props.song && !audio.value) || oversizedCover.value) return;
+  if (busy.value || reading.value) return;
   error.value = "";
+  if (!props.song && !audio.value) fieldErrors.audio ||= "请选择 MP3 文件。";
+  if (!form.title) fieldErrors.title = "请填写歌曲名。";
+  if (!form.artist) fieldErrors.artist = "请填写歌手。";
+  if (form.year && !/^[1-9]\d{3}$/.test(form.year))
+    fieldErrors.year = "请输入 1000 至 9999 的四位年份。";
+  for (const { name } of fields) {
+    if (name !== "year" && form[name].length > 250) fieldErrors[name] = "最多填写 250 字。";
+  }
+  if (form.description.length > 4000) fieldErrors.description = "最多填写 4000 字。";
+  if (coverError.value || Object.values(fieldErrors).some(Boolean)) return;
   const body = new FormData();
   for (const [name, value] of Object.entries(form)) body.set(name, value);
   if (audio.value) body.set("audio", audio.value);
@@ -114,17 +138,25 @@ async function save() {
   if (removeCover.value) body.set("removeCover", "true");
   try {
     await saveSong.mutateAsync({ songId: props.song?.id, body });
+    emit("saved");
   } catch (cause) {
-    error.value = libraryError(cause);
+    const { field, message } = libraryFormError(cause);
+    const metadataField = fields.find(({ name }) => name === field)?.name;
+    if (field === "audio" || field === "cover" || field === "description") {
+      fieldErrors[field] = message;
+    } else if (metadataField) {
+      fieldErrors[metadataField] = message;
+    } else {
+      error.value = message;
+    }
   }
-  if (!error.value) emit("saved");
 }
 
 defineExpose({ busy });
 </script>
 
 <template>
-  <form class="grid gap-4" @submit.prevent="save">
+  <form class="grid gap-4" novalidate @submit.prevent="save">
     <h2 v-if="song" class="text-lg font-semibold">编辑歌曲</h2>
     <div class="grid gap-2" :class="{ 'sm:grid-cols-2': !song }">
       <div v-if="!song" class="min-w-0">
@@ -137,9 +169,18 @@ defineExpose({ busy });
           @change="selectAudio"
         />
         <button
-          class="btn btn-ghost h-14 w-full justify-start gap-3 rounded-box border-primary/25 bg-primary/5 px-3 text-left hover:bg-primary/10"
+          class="btn btn-ghost validator h-14 w-full justify-start gap-3 rounded-box bg-primary/5 px-3 text-left hover:bg-primary/10"
+          :class="fieldErrors.audio ? 'border-error' : 'border-primary/25'"
           type="button"
           :disabled="busy || reading"
+          :aria-invalid="!!fieldErrors.audio"
+          :aria-describedby="
+            fieldErrors.audio
+              ? `${fieldId}-audio-error`
+              : audioNotice
+                ? `${fieldId}-audio-notice`
+                : undefined
+          "
           @click="audioInput?.click()"
         >
           <span
@@ -166,6 +207,22 @@ defineExpose({ busy });
             aria-hidden="true"
           />
         </button>
+        <p
+          v-if="fieldErrors.audio"
+          :id="`${fieldId}-audio-error`"
+          class="validator-hint mt-1"
+          role="alert"
+        >
+          {{ fieldErrors.audio }}
+        </p>
+        <p
+          v-else-if="audioNotice"
+          :id="`${fieldId}-audio-notice`"
+          class="mt-1 text-xs text-warning"
+          role="status"
+        >
+          {{ audioNotice }}
+        </p>
         <span class="sr-only" role="status">{{ reading ? "读取歌曲资料中…" : audio?.name }}</span>
       </div>
       <div class="min-w-0">
@@ -178,7 +235,8 @@ defineExpose({ busy });
           @change="selectCoverFile"
         />
         <div
-          class="flex h-14 items-center rounded-box border border-base-300 bg-base-100 transition-colors hover:bg-base-200/50"
+          class="validator flex h-14 items-center rounded-box border bg-base-100 transition-colors hover:bg-base-200/50"
+          :class="coverError ? 'border-error' : 'border-base-300'"
         >
           <MusicArtwork
             v-if="hasCover"
@@ -190,6 +248,8 @@ defineExpose({ busy });
             class="btn btn-ghost h-full min-w-0 flex-1 justify-start gap-3 rounded-box border-0 px-3 text-left hover:bg-transparent hover:shadow-none"
             type="button"
             :disabled="busy || reading"
+            :aria-invalid="!!coverError"
+            :aria-describedby="coverError ? `${fieldId}-cover-error` : undefined"
             @click="coverInput?.click()"
           >
             <span
@@ -225,14 +285,19 @@ defineExpose({ busy });
           </button>
         </div>
         <span class="sr-only" role="status">{{ cover?.name }}</span>
-        <p v-if="oversizedCover" class="mt-1 text-xs text-error" role="alert">
-          封面超过 1 MiB，请移除或重新选择。
+        <p
+          v-if="coverError"
+          :id="`${fieldId}-cover-error`"
+          class="validator-hint mt-1"
+          role="alert"
+        >
+          {{ coverError }}
         </p>
       </div>
     </div>
     <div class="grid grid-cols-2 gap-3">
-      <label v-for="field in fields" :key="field.name" class="grid gap-1.5 text-sm font-medium">
-        <span>
+      <div v-for="field in fields" :key="field.name" class="grid content-start gap-1.5 text-sm">
+        <label :for="`${fieldId}-${field.name}`" class="font-medium">
           {{ field.label
           }}<span
             v-if="field.name === 'title' || field.name === 'artist'"
@@ -240,34 +305,56 @@ defineExpose({ busy });
             aria-hidden="true"
             >*</span
           >
-        </span>
+        </label>
         <input
+          :id="`${fieldId}-${field.name}`"
           v-model.trim="form[field.name]"
-          class="input w-full"
+          class="input validator w-full"
           :required="field.name === 'title' || field.name === 'artist'"
           :maxlength="field.name === 'year' ? 4 : 250"
           :inputmode="field.name === 'year' ? 'numeric' : 'text'"
           :disabled="busy || reading"
+          :aria-invalid="!!fieldErrors[field.name]"
+          :aria-describedby="fieldErrors[field.name] ? `${fieldId}-${field.name}-error` : undefined"
+          @input="fieldErrors[field.name] = ''"
         />
-      </label>
+        <p
+          v-if="fieldErrors[field.name]"
+          :id="`${fieldId}-${field.name}-error`"
+          class="validator-hint mt-0"
+          role="alert"
+        >
+          {{ fieldErrors[field.name] }}
+        </p>
+      </div>
     </div>
-    <label class="grid gap-1.5 text-sm font-medium"
-      >介绍<textarea
+    <div class="grid gap-1.5 text-sm">
+      <label :for="`${fieldId}-description`" class="font-medium">介绍</label>
+      <textarea
+        :id="`${fieldId}-description`"
         v-model.trim="form.description"
-        class="textarea w-full"
+        class="textarea validator w-full"
         maxlength="4000"
         :disabled="busy || reading"
+        :aria-invalid="!!fieldErrors.description"
+        :aria-describedby="fieldErrors.description ? `${fieldId}-description-error` : undefined"
+        @input="fieldErrors.description = ''"
       />
-    </label>
+      <p
+        v-if="fieldErrors.description"
+        :id="`${fieldId}-description-error`"
+        class="validator-hint mt-0"
+        role="alert"
+      >
+        {{ fieldErrors.description }}
+      </p>
+    </div>
     <p v-if="error" role="alert" class="text-error">{{ error }}</p>
     <div class="flex justify-end gap-2">
       <button class="btn btn-ghost" type="button" :disabled="busy" @click="emit('cancel')">
         取消
       </button>
-      <button
-        class="btn btn-primary"
-        :disabled="busy || reading || (!song && !audio) || oversizedCover"
-      >
+      <button class="btn btn-primary" :disabled="busy || reading">
         {{ busy ? "保存中…" : "保存" }}
       </button>
     </div>

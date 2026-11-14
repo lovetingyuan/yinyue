@@ -11,6 +11,12 @@ export interface Song {
   coverId: string | null;
 }
 
+export interface SongPage {
+  items: Song[];
+  nextOffset: number | null;
+  total?: number;
+}
+
 export interface Playlist {
   id: string;
   name: string;

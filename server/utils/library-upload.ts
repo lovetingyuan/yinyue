@@ -26,7 +26,11 @@ export function formText(
   const part = form.get(name);
   const value = part && !part.filename ? part.data.toString("utf8").trim() : "";
   if ((required && !value) || value.length > length) {
-    throw createError({ statusCode: 400, statusMessage: "INVALID_METADATA" });
+    throw createError({
+      statusCode: 400,
+      statusMessage: "INVALID_METADATA",
+      data: { field: name, reason: value ? "length" : "required" },
+    });
   }
   return value || null;
 }
