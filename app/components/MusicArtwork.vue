@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { X } from "@lucide/vue";
 const props = defineProps<{ src?: string | null; zoomable?: boolean }>();
 const broken = ref(false);
 const preview = useTemplateRef("preview");
@@ -43,7 +44,7 @@ watch(
           <img :src="src" alt="封面大图" class="max-h-[85dvh] max-w-full object-contain" />
           <form method="dialog" class="absolute top-2 right-2">
             <button class="btn btn-circle btn-sm" aria-label="关闭封面大图">
-              <MusicIcon name="close" class="size-4" />
+              <X class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
             </button>
           </form>
         </div>

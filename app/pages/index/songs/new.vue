@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ArrowLeft } from "@lucide/vue";
 defineOptions({ name: "NewSong" });
 
 const router = useRouter();
@@ -21,7 +22,7 @@ onBeforeRouteLeave(() => !editor.value?.busy);
     <div class="mx-auto max-w-2xl">
       <header class="mb-4 flex items-center justify-between gap-3">
         <button type="button" class="btn btn-ghost -ml-3" :disabled="editor?.busy" @click="leave">
-          <MusicIcon name="back" />
+          <ArrowLeft class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           返回曲库
         </button>
         <h1 id="new-song-title" class="text-base font-semibold">新增歌曲</h1>

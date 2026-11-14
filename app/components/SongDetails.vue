@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ListPlus, Pencil, Trash2 } from "@lucide/vue";
+import { ListPlus, Pencil, Trash2, X } from "@lucide/vue";
 import type { Song } from "~~/shared/types/library";
 
 const { data: song, error: queryError, asyncStatus } = useSongDetailsState();
@@ -27,7 +27,7 @@ const playlistButton = useTemplateRef("playlistButton");
         :disabled="loading"
         @click="emit('close')"
       >
-        <MusicIcon name="close" />
+        <X class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
       </button>
       <div v-if="song" class="flex items-center gap-3.5 pr-10 sm:gap-4">
         <MusicArtwork :src="coverUrl" class="w-18 shadow-md sm:w-22" />

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AudioLines, Menu, Plus, X } from "@lucide/vue";
 import { useMutationCache, useQuery, useQueryCache } from "@pinia/colada";
 import { useMediaQuery, useOnline, useStorage } from "@vueuse/core";
 import { storeToRefs } from "pinia";
@@ -264,7 +265,7 @@ onBeforeUnmount(() => {
           :aria-expanded="drawerOpen"
           @click="drawerOpen = true"
         >
-          <MusicIcon name="menu" />
+          <Menu class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
         </button>
         <span class="text-xl font-bold tracking-tight">inYue</span>
       </header>
@@ -296,7 +297,7 @@ onBeforeUnmount(() => {
             @click="drawerOpen = false"
           >
             <span class="grid size-9 place-items-center rounded-xl bg-primary text-primary-content"
-              ><MusicIcon name="wave"
+              ><AudioLines class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true"
             /></span>
             <span class="text-xl font-bold tracking-tight">inYue</span>
           </NuxtLink>
@@ -307,7 +308,7 @@ onBeforeUnmount(() => {
             aria-label="关闭导航菜单"
             @click="drawerOpen = false"
           >
-            <MusicIcon name="close" />
+            <X class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           </button>
         </div>
         <nav v-if="!offline" aria-label="曲库" class="flex min-h-0 flex-1 flex-col gap-2 px-3 pb-3">
@@ -317,7 +318,7 @@ onBeforeUnmount(() => {
             active-class="bg-primary/10 text-primary"
             @click="drawerOpen = false"
           >
-            <MusicIcon name="plus" /> 新增歌曲
+            <Plus class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" /> 新增歌曲
           </NuxtLink>
           <div id="library-playlists" class="min-h-0 overflow-y-auto overscroll-contain" />
         </nav>
@@ -405,7 +406,7 @@ onBeforeUnmount(() => {
         <div class="card-body gap-4 p-2 sm:p-4">
           <header class="mb-4 flex items-center gap-3">
             <span class="grid size-11 place-items-center rounded-xl bg-primary text-primary-content"
-              ><MusicIcon name="wave" class="size-6"
+              ><AudioLines class="size-6 shrink-0" :stroke-width="1.8" aria-hidden="true"
             /></span>
             <h1 class="text-3xl font-bold tracking-tight">inYue</h1>
           </header>

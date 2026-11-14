@@ -76,7 +76,7 @@ $env:JAVA_HOME = 'C:\path\to\jdk-21'
 npm run android
 ```
 
-Android 应用 ID 仍为 `com.tingyuan.music`，应用名称为 `inYue`，原生系统栏继续跟随系统主题。
+Android 应用 ID 为 `com.tingyuan.inyue`，应用名称为 `inYue`，原生系统栏继续跟随系统主题。
 
 ## 服务配置
 
@@ -94,7 +94,7 @@ Android 应用 ID 仍为 `com.tingyuan.music`，应用名称为 `inYue`，原生
 
 Nuxt 开发时将变量写入项目根目录的 `.env`，Wrangler 预览时可使用 `.dev.vars`。部署时使用 Worker 变量与 Cloudflare Secrets，并将 `wrangler.jsonc` 的 Worker 名称、`DB` 的数据库名称和 ID、`MEDIA` 的私有桶名称替换为实际资源。通过 `npx wrangler d1 migrations apply DB --remote --config wrangler.jsonc` 应用生产迁移。
 
-Google 启用时，在 Web OAuth 客户端登记 `<站点地址>/api/auth/callback/google`，并为 Android 登记包名 `com.tingyuan.music` 和对应签名证书的 SHA-1。Android Credential Manager 使用 Web 客户端 ID 请求 ID token。当前 Google 验收搁置。
+Google 启用时，在 Web OAuth 客户端登记 `<站点地址>/api/auth/callback/google`，并为 Android 登记包名 `com.tingyuan.inyue` 和对应签名证书的 SHA-1。Android Credential Manager 使用 Web 客户端 ID 请求 ID token。当前 Google 验收搁置。
 
 ## 本地集成验证
 

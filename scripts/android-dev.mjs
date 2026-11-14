@@ -84,7 +84,7 @@ execFileSync(
 // time out during cold starts and causes native-run to restart the ADB server.
 execFileSync(
   adb,
-  ["-s", device, "shell", "am", "start", "-n", "com.tingyuan.music/.MainActivity"],
+  ["-s", device, "shell", "am", "start", "-n", "com.tingyuan.inyue/.MainActivity"],
   { stdio: "inherit" },
 );
 console.log(`Android 已部署，热更新地址：${androidDevOrigin}`);

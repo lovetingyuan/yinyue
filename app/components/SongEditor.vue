@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Image, Music, Plus, X } from "@lucide/vue";
 import { useObjectUrl } from "@vueuse/core";
 import type { Song } from "~~/shared/types/library";
 import { audioMaxBytes, coverMaxBytes } from "~~/shared/library-limits";
@@ -143,7 +144,7 @@ defineExpose({ busy });
         >
           <span
             class="grid size-9 shrink-0 place-items-center rounded-field bg-primary/10 text-primary"
-            ><MusicIcon name="music"
+            ><Music class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true"
           /></span>
           <span class="min-w-0 flex-1">
             <span class="block text-sm">
@@ -158,7 +159,12 @@ defineExpose({ busy });
               {{ reading ? "读取歌曲资料中…" : (audio?.name ?? "最大 15 MiB") }}
             </span>
           </span>
-          <MusicIcon v-if="!audio" name="plus" class="text-primary" />
+          <Plus
+            v-if="!audio"
+            class="text-primary size-5 shrink-0"
+            :stroke-width="1.8"
+            aria-hidden="true"
+          />
         </button>
         <span class="sr-only" role="status">{{ reading ? "读取歌曲资料中…" : audio?.name }}</span>
       </div>
@@ -189,7 +195,7 @@ defineExpose({ busy });
             <span
               v-if="!hasCover"
               class="grid size-9 shrink-0 place-items-center rounded-field bg-base-200 text-base-content/75"
-              ><MusicIcon name="image"
+              ><Image class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true"
             /></span>
             <span class="min-w-0 flex-1">
               <span class="block text-sm">{{ hasCover ? "更换封面" : "选择封面" }}</span>
@@ -200,10 +206,11 @@ defineExpose({ busy });
                 {{ cover?.name ?? (hasCover ? "已有封面" : "可选 · 最大 1 MiB") }}
               </span>
             </span>
-            <MusicIcon
+            <Plus
               v-if="!hasCover && !oversizedCover"
-              name="plus"
-              class="text-base-content/65"
+              class="text-base-content/65 size-5 shrink-0"
+              :stroke-width="1.8"
+              aria-hidden="true"
             />
           </button>
           <button
@@ -214,7 +221,7 @@ defineExpose({ busy });
             :disabled="busy || reading"
             @click="clearCover"
           >
-            <MusicIcon name="close" class="size-4" />
+            <X class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           </button>
         </div>
         <span class="sr-only" role="status">{{ cover?.name }}</span>

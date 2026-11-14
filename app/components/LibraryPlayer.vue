@@ -1,4 +1,15 @@
 <script setup lang="ts">
+import {
+  AudioLines,
+  ChevronDown,
+  ListMusic,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  X,
+} from "@lucide/vue";
 import { storeToRefs } from "pinia";
 
 const player = usePlayerStore();
@@ -69,7 +80,12 @@ function changeMode(event: Event) {
             aria-label="上一首"
             @click="player.step(-1)"
           >
-            <MusicIcon name="previous" class="size-4" />
+            <SkipBack
+              class="size-4 shrink-0"
+              :stroke-width="1.8"
+              aria-hidden="true"
+              fill="currentColor"
+            />
           </button>
           <button
             type="button"
@@ -77,7 +93,13 @@ function changeMode(event: Event) {
             :aria-label="playing ? '暂停' : '播放'"
             @click="player.toggle()"
           >
-            <MusicIcon :name="playing ? 'pause' : 'play'" />
+            <component
+              :is="playing ? Pause : Play"
+              class="size-5 shrink-0"
+              :stroke-width="1.8"
+              aria-hidden="true"
+              fill="currentColor"
+            />
           </button>
           <button
             type="button"
@@ -85,7 +107,12 @@ function changeMode(event: Event) {
             aria-label="下一首"
             @click="player.step(1)"
           >
-            <MusicIcon name="next" class="size-4" />
+            <SkipForward
+              class="size-4 shrink-0"
+              :stroke-width="1.8"
+              aria-hidden="true"
+              fill="currentColor"
+            />
           </button>
           <button
             type="button"
@@ -94,7 +121,7 @@ function changeMode(event: Event) {
             aria-haspopup="dialog"
             @click="showMusicDialog(queueDialog)"
           >
-            <MusicIcon name="playlist" />
+            <ListMusic class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           </button>
         </div>
         <div
@@ -122,7 +149,7 @@ function changeMode(event: Event) {
       </div>
       <div class="hidden items-center justify-end gap-3 md:flex">
         <label class="hidden items-center gap-2 lg:flex">
-          <MusicIcon name="volume" class="size-4" />
+          <Volume2 class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           <input
             aria-label="音量"
             class="range range-xs w-18 text-neutral-content [--range-thumb-size:0.55rem]"
@@ -141,7 +168,7 @@ function changeMode(event: Event) {
           aria-haspopup="dialog"
           @click="showMusicDialog(queueDialog)"
         >
-          <MusicIcon name="playlist" />
+          <ListMusic class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -154,7 +181,7 @@ function changeMode(event: Event) {
       <div class="flex shrink-0 items-center justify-between gap-2">
         <form method="dialog">
           <button class="btn btn-ghost btn-circle" aria-label="收起正在播放">
-            <MusicIcon name="down" />
+            <ChevronDown class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           </button>
         </form>
         <h2 id="now-playing-title" class="text-sm font-semibold text-base-content/70">正在播放</h2>
@@ -165,7 +192,7 @@ function changeMode(event: Event) {
           aria-haspopup="dialog"
           @click="showMusicDialog(queueDialog)"
         >
-          <MusicIcon name="playlist" />
+          <ListMusic class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
         </button>
       </div>
       <div
@@ -214,7 +241,12 @@ function changeMode(event: Event) {
               aria-label="上一首"
               @click="player.step(-1)"
             >
-              <MusicIcon name="previous" class="size-6" />
+              <SkipBack
+                class="size-6 shrink-0"
+                :stroke-width="1.8"
+                aria-hidden="true"
+                fill="currentColor"
+              />
             </button>
             <button
               type="button"
@@ -222,7 +254,13 @@ function changeMode(event: Event) {
               :aria-label="playing ? '暂停' : '播放'"
               @click="player.toggle()"
             >
-              <MusicIcon :name="playing ? 'pause' : 'play'" class="size-7" />
+              <component
+                :is="playing ? Pause : Play"
+                class="size-7 shrink-0"
+                :stroke-width="1.8"
+                aria-hidden="true"
+                fill="currentColor"
+              />
             </button>
             <button
               type="button"
@@ -230,7 +268,12 @@ function changeMode(event: Event) {
               aria-label="下一首"
               @click="player.step(1)"
             >
-              <MusicIcon name="next" class="size-6" />
+              <SkipForward
+                class="size-6 shrink-0"
+                :stroke-width="1.8"
+                aria-hidden="true"
+                fill="currentColor"
+              />
             </button>
           </div>
           <div class="flex items-center justify-between gap-4">
@@ -245,7 +288,7 @@ function changeMode(event: Event) {
               <option value="shuffle">随机播放</option>
             </select>
             <label class="flex min-w-0 max-w-28 items-center gap-2 text-base-content/70">
-              <MusicIcon name="volume" class="size-4" />
+              <Volume2 class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
               <input
                 aria-label="音量"
                 class="range range-xs min-w-0 flex-1"
@@ -287,7 +330,7 @@ function changeMode(event: Event) {
         </h2>
         <form method="dialog">
           <button class="btn btn-ghost btn-circle btn-sm" aria-label="关闭播放队列">
-            <MusicIcon name="close" />
+            <X class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           </button>
         </form>
       </div>
@@ -304,7 +347,12 @@ function changeMode(event: Event) {
             <span class="block truncate text-sm font-semibold">{{ item.title }}</span>
             <span class="block truncate text-xs text-base-content/65">{{ item.artist }}</span>
           </span>
-          <MusicIcon v-if="item.id === track?.id" name="wave" class="size-4 text-primary" />
+          <AudioLines
+            v-if="item.id === track?.id"
+            class="size-4 text-primary shrink-0"
+            :stroke-width="1.8"
+            aria-hidden="true"
+          />
         </li>
       </ol>
     </div>

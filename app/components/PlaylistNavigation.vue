@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Ellipsis, ListMusic, Music, Plus } from "@lucide/vue";
 import type { Playlist } from "~~/shared/types/library";
 
 const { playlists, covers } = usePlaylistState();
@@ -16,8 +17,8 @@ async function select(id: string) {
   app.drawerOpen = false;
 }
 const sections = [
-  { id: "", name: "所有歌曲", icon: "music" },
-  { id: "default", name: "默认歌单", icon: "playlist" },
+  { id: "", name: "所有歌曲", icon: Music },
+  { id: "default", name: "默认歌单", icon: ListMusic },
 ] as const;
 </script>
 
@@ -32,7 +33,8 @@ const sections = [
       :aria-current="selected === item.id ? 'true' : undefined"
       @click="select(item.id)"
     >
-      <MusicIcon :name="item.icon" /> {{ item.name }}
+      <component :is="item.icon" class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
+      {{ item.name }}
     </button>
     <div class="mt-5 flex items-center justify-between gap-2 pl-3">
       <span class="text-xs font-semibold text-base-content/65">我的歌单</span>
@@ -43,7 +45,7 @@ const sections = [
         title="新建歌单"
         @click="emit('edit')"
       >
-        <MusicIcon name="plus" class="size-4" />
+        <Plus class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
       </button>
     </div>
     <div
@@ -67,7 +69,7 @@ const sections = [
         :aria-label="`编辑${item.name}`"
         @click="emit('edit', item)"
       >
-        <MusicIcon name="more" class="size-4" />
+        <Ellipsis class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
       </button>
     </div>
   </div>

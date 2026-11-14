@@ -1,4 +1,4 @@
-package com.tingyuan.music;
+package com.tingyuan.inyue;
 
 import android.content.res.Configuration;
 import android.os.Bundle;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AudioLines, Clock, Ellipsis, Music, Play, Search, X } from "@lucide/vue";
 import { useObjectUrl } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import type { Playlist, Song } from "~~/shared/types/library";
@@ -157,7 +158,7 @@ onBeforeUnmount(() => {
               class="btn btn-ghost btn-circle btn-xs -ml-1 text-base-content/70"
               aria-label="搜索"
             >
-              <MusicIcon name="search" class="size-4" />
+              <Search class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
             </button>
             <input
               v-model="search"
@@ -193,7 +194,12 @@ onBeforeUnmount(() => {
             aria-label="播放歌单"
             @click="playFirst"
           >
-            <MusicIcon name="play" />
+            <Play
+              class="size-5 shrink-0"
+              :stroke-width="1.8"
+              aria-hidden="true"
+              fill="currentColor"
+            />
           </button>
         </div>
         <p
@@ -210,7 +216,12 @@ onBeforeUnmount(() => {
           v-else-if="!songs.length"
           class="grid justify-items-center gap-3 py-12 text-center text-sm text-base-content/70"
         >
-          <MusicIcon :name="term ? 'search' : 'music'" class="size-8 text-primary" />
+          <component
+            :is="term ? Search : Music"
+            class="size-8 text-primary shrink-0"
+            :stroke-width="1.8"
+            aria-hidden="true"
+          />
           <p>{{ term ? "没有匹配的歌曲" : "这个歌单还没有歌曲" }}</p>
           <NuxtLink v-if="!term" to="/songs/new" class="btn btn-ghost btn-sm text-primary"
             >新增歌曲</NuxtLink
@@ -223,7 +234,7 @@ onBeforeUnmount(() => {
           >
             <span class="w-6 text-center">#</span><span class="flex-1">歌曲</span
             ><span class="w-[24%]">专辑</span>
-            <MusicIcon name="clock" class="mr-12 size-4" />
+            <Clock class="mr-12 size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
           </div>
           <ul class="grid">
             <li
@@ -242,16 +253,19 @@ onBeforeUnmount(() => {
                   class="relative hidden w-6 shrink-0 place-items-center text-center text-xs tabular-nums lg:grid"
                   aria-hidden="true"
                 >
-                  <MusicIcon
+                  <AudioLines
                     v-if="current?.id === song.id"
-                    name="wave"
-                    class="size-4 text-primary"
+                    class="size-4 text-primary shrink-0"
+                    :stroke-width="1.8"
+                    aria-hidden="true"
                   />
                   <template v-else
                     ><span class="text-base-content/55 group-hover:opacity-0">{{ index + 1 }}</span
-                    ><MusicIcon
-                      name="play"
-                      class="absolute size-4 opacity-0 group-hover:opacity-100"
+                    ><Play
+                      class="absolute size-4 opacity-0 group-hover:opacity-100 shrink-0"
+                      :stroke-width="1.8"
+                      aria-hidden="true"
+                      fill="currentColor"
                   /></template>
                 </span>
                 <MusicArtwork
@@ -283,7 +297,7 @@ onBeforeUnmount(() => {
                 :aria-label="`${song.title} 详情`"
                 @click="view(song)"
               >
-                <MusicIcon name="more" />
+                <Ellipsis class="size-5 shrink-0" :stroke-width="1.8" aria-hidden="true" />
               </button>
             </li>
           </ul>
@@ -356,7 +370,7 @@ onBeforeUnmount(() => {
                 :disabled="pending"
                 @click="clearPlaylistCover"
               >
-                <MusicIcon name="close" class="size-4" />
+                <X class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
               </button>
             </div>
           </div>

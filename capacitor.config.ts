@@ -4,7 +4,7 @@ import { androidDevOrigin } from "./shared/android-dev.mjs";
 const dev = process.env.INYUE_ANDROID_DEV === "1";
 
 export default {
-  appId: "com.tingyuan.music",
+  appId: "com.tingyuan.inyue",
   appName: "inYue",
   webDir: ".output-capacitor/public",
   ...(dev ? { server: { url: androidDevOrigin } } : {}),
