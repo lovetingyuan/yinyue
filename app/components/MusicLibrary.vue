@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { AudioLines, Clock, Ellipsis, Music, Play, Search, X } from "@lucide/vue";
+import { AudioLines, Clock, Ellipsis, Music, Play, Search, Signal, X } from "@lucide/vue";
 import { useObjectUrl } from "@vueuse/core";
 import { storeToRefs } from "pinia";
 import type { Playlist, Song } from "~~/shared/types/library";
 
 const library = useLibraryStore();
 const { playlist, search, term } = storeToRefs(library);
-const { current } = storeToRefs(usePlayerStore());
+const { current, playing } = storeToRefs(usePlayerStore());
 const router = useRouter();
 const showLibrary = computed(() => router.currentRoute.value.path === "/");
 const { songs: songQuery, playlists: playlistQuery, play } = useLibraryQueries();
@@ -240,13 +240,14 @@ onBeforeUnmount(() => {
             <li
               v-for="(song, index) in songs"
               :key="song.id"
-              class="flex items-center gap-1 rounded-field"
+              class="flex items-center gap-1 rounded-field pl-2"
               :class="current?.id === song.id ? 'bg-primary/8' : 'hover:bg-base-200/70'"
             >
               <button
                 class="group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-field py-2 pr-1 text-left lg:px-3"
                 :aria-label="`播放 ${song.title}`"
                 :aria-current="current?.id === song.id ? 'true' : undefined"
+                :aria-description="playing && current?.id === song.id ? '正在播放' : undefined"
                 @click="play(song.id)"
               >
                 <span
@@ -287,10 +288,16 @@ onBeforeUnmount(() => {
                   song.album || "—"
                 }}</span>
                 <span
-                  v-if="song.duration != null"
-                  class="text-xs text-base-content/65 tabular-nums"
-                  >{{ formatMusicTime(song.duration) }}</span
+                  class="grid min-w-8 shrink-0 justify-items-end text-xs text-base-content/65 tabular-nums"
                 >
+                  <Signal
+                    v-if="playing && current?.id === song.id"
+                    class="playing-bars size-4 text-primary"
+                    :stroke-width="2"
+                    aria-hidden="true"
+                  />
+                  <span v-else-if="song.duration != null">{{ formatMusicTime(song.duration) }}</span>
+                </span>
               </button>
               <button
                 class="btn btn-ghost btn-circle btn-sm mr-1"
@@ -435,3 +442,45 @@ onBeforeUnmount(() => {
     <SongPlaylistPicker v-if="panel === 'details' && details" ref="playlistPicker" />
   </div>
 </template>
+
+<style scoped>
+.playing-bars :deep(path:first-child) {
+  display: none;
+}
+
+.playing-bars :deep(path:nth-child(2)) {
+  scale: 1 3;
+  animation: playing-bar 640ms ease-in-out -220ms infinite alternate;
+}
+
+.playing-bars :deep(path:nth-child(3)) {
+  scale: 1 1.5;
+  animation: playing-bar 730ms ease-in-out -510ms infinite alternate-reverse;
+}
+
+.playing-bars :deep(path:nth-child(4)) {
+  animation: playing-bar 590ms ease-in-out -90ms infinite alternate;
+}
+
+.playing-bars :deep(path:nth-child(5)) {
+  animation: playing-bar 680ms ease-in-out -390ms infinite alternate-reverse;
+}
+
+.playing-bars :deep(path) {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  vector-effect: non-scaling-stroke;
+}
+
+@keyframes playing-bar {
+  0% {
+    transform: scaleY(0.35);
+  }
+  58% {
+    transform: scaleY(0.55);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+</style>

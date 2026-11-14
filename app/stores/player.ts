@@ -34,6 +34,7 @@ export const usePlayerStore = defineStore("player", () => {
   let requestedOwner = "";
   let ownerRevision = 0;
   let operations = Promise.resolve();
+  let nativeLoadTarget = "";
   let cancelAuthorization: (() => void) | undefined;
 
   function storageKey(userId: string) {
@@ -76,6 +77,8 @@ export const usePlayerStore = defineStore("player", () => {
       )
         playbackError();
       if (status.value && "currentPosition" in status.value) {
+        // Android can report the first track while replacing the native queue.
+        if (nativeLoadTarget && status.trackId !== nativeLoadTarget) return;
         if (order.value.includes(status.trackId)) id.value = status.trackId;
         position.value = status.value.currentPosition;
         playing.value = status.value.status === "playing";
@@ -129,22 +132,27 @@ export const usePlayerStore = defineStore("player", () => {
       await initializeNative();
       const output = player;
       if (owner !== requestedOwner || !output) return;
-      await output.setLoop({ loop: mode.value === "loop" && order.value.length > 1 });
-      await output.setPlaylistItems({
-        items: queue.value.map(({ id, url, title, artist, album, coverUrl }) => ({
-          trackId: id,
-          assetUrl: url,
-          title,
-          artist,
-          album: album ?? "",
-          albumArt: coverUrl ?? undefined,
-        })),
-        options: { startPaused: true, playFromId: selected },
-      });
-      await output.setPlaybackVolume({ volume: volume.value });
-      if (owner !== requestedOwner) return;
-      if (autoplay) await output.playTrackById({ id: selected, position: time });
-      else await output.selectTrackById({ id: selected, position: time });
+      nativeLoadTarget = selected;
+      try {
+        await output.setLoop({ loop: mode.value === "loop" && order.value.length > 1 });
+        await output.setPlaylistItems({
+          items: queue.value.map(({ id, url, title, artist, album, coverUrl }) => ({
+            trackId: id,
+            assetUrl: url,
+            title,
+            artist,
+            album: album ?? "",
+            albumArt: coverUrl ?? undefined,
+          })),
+          options: { startPaused: true, playFromId: selected },
+        });
+        await output.setPlaybackVolume({ volume: volume.value });
+        if (owner !== requestedOwner) return;
+        if (autoplay) await output.playTrackById({ id: selected, position: time });
+        else await output.selectTrackById({ id: selected, position: time });
+      } finally {
+        nativeLoadTarget = "";
+      }
     } else {
       const output = webAudio();
       output.src = track.url;

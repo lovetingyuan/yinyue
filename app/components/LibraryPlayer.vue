@@ -3,19 +3,36 @@ import {
   AudioLines,
   ChevronDown,
   ListMusic,
+  ListOrdered,
   Pause,
   Play,
+  Repeat,
+  Shuffle,
   SkipBack,
   SkipForward,
   Volume2,
   X,
 } from "@lucide/vue";
+import { useTimeoutFn } from "@vueuse/core";
 import { storeToRefs } from "pinia";
+import type { PlaybackMode } from "~~/shared/types/library";
 
 const player = usePlayerStore();
 const { current: track, queue, position, volume, playing, mode, error } = storeToRefs(player);
 const nowPlaying = useTemplateRef("nowPlaying");
 const queueDialog = useTemplateRef("queueDialog");
+const playbackModes = {
+  sequential: { label: "顺序播放", icon: ListOrdered },
+  loop: { label: "列表循环", icon: Repeat },
+  shuffle: { label: "随机播放", icon: Shuffle },
+};
+const modeLabel = computed(() => `切换播放模式，当前为${playbackModes[mode.value].label}`);
+const changingMode = ref(false);
+const {
+  isPending: showModeNotice,
+  start: revealModeNotice,
+  stop: hideModeNotice,
+} = useTimeoutFn(() => {}, 1500, { immediate: false });
 const duration = computed(() => track.value?.duration || 0);
 const seekPreview = ref<number>();
 const displayedPosition = computed(() => seekPreview.value ?? position.value);
@@ -28,6 +45,7 @@ watch(
   (trackId) => {
     seekPreview.value = undefined;
     if (trackId) return;
+    hideModeNotice();
     queueDialog.value?.close();
     nowPlaying.value?.close();
   },
@@ -43,10 +61,34 @@ function commitSeek(event: Event) {
   void player.seek(rangeValue(event));
 }
 
-function changeMode(event: Event) {
-  if (!(event.target instanceof HTMLSelectElement)) return;
-  const value = event.target.value;
-  if (value === "sequential" || value === "loop" || value === "shuffle") void player.setMode(value);
+async function setPlaybackMode(value: PlaybackMode) {
+  if (changingMode.value) return;
+  changingMode.value = true;
+  try {
+    await player.setMode(value);
+  } finally {
+    changingMode.value = false;
+  }
+}
+
+async function cycleMode() {
+  if (changingMode.value) return;
+  const previousMode = mode.value;
+  let nextMode: PlaybackMode = "sequential";
+  if (previousMode === "sequential") nextMode = queue.value.length > 1 ? "loop" : "shuffle";
+  else if (previousMode === "loop") nextMode = "shuffle";
+
+  await setPlaybackMode(nextMode);
+  if (mode.value === nextMode && track.value) revealModeNotice();
+}
+
+async function changeMode({ target }: Event) {
+  if (!(target instanceof HTMLSelectElement)) return;
+  const value = target.value;
+  if (value === "sequential" || value === "loop" || value === "shuffle") {
+    await setPlaybackMode(value);
+  }
+  target.value = mode.value;
 }
 </script>
 
@@ -57,8 +99,19 @@ function changeMode(event: Event) {
     </div>
     <div
       v-if="track"
-      class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-box bg-neutral px-2.5 py-2 text-neutral-content shadow-lg sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,1.4fr)_minmax(0,1fr)]"
+      class="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 rounded-box bg-neutral px-2.5 py-2 text-neutral-content shadow-lg sm:px-4 md:grid-cols-[minmax(0,1fr)_minmax(14rem,1.4fr)_minmax(0,1fr)]"
     >
+      <div
+        role="status"
+        class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2"
+      >
+        <span
+          v-if="showModeNotice"
+          class="badge badge-neutral badge-sm h-auto whitespace-nowrap rounded-full px-3 py-1 shadow-sm"
+        >
+          {{ playbackModes[mode].label }}
+        </span>
+      </div>
       <button
         type="button"
         class="flex min-w-0 cursor-pointer items-center gap-3 rounded-field text-left"
@@ -76,7 +129,7 @@ function changeMode(event: Event) {
         <div class="flex items-center gap-0.5 md:gap-2">
           <button
             type="button"
-            class="btn btn-ghost btn-circle hidden text-neutral-content hover:bg-neutral-content/12 md:inline-flex"
+            class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12"
             aria-label="上一首"
             @click="player.step(-1)"
           >
@@ -112,6 +165,21 @@ function changeMode(event: Event) {
               :stroke-width="1.8"
               aria-hidden="true"
               fill="currentColor"
+            />
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-circle text-neutral-content hover:bg-neutral-content/12 aria-disabled:opacity-60"
+            :aria-label="modeLabel"
+            :title="modeLabel"
+            :aria-disabled="changingMode"
+            @click="cycleMode"
+          >
+            <component
+              :is="playbackModes[mode].icon"
+              class="size-5 shrink-0"
+              :stroke-width="1.8"
+              aria-hidden="true"
             />
           </button>
           <button
@@ -281,11 +349,17 @@ function changeMode(event: Event) {
               aria-label="播放模式"
               class="select select-sm w-auto"
               :value="mode"
+              :disabled="changingMode"
               @change="changeMode"
             >
-              <option value="sequential">顺序播放</option>
-              <option value="loop" :disabled="queue.length < 2">列表循环</option>
-              <option value="shuffle">随机播放</option>
+              <option
+                v-for="(option, value) in playbackModes"
+                :key="value"
+                :value="value"
+                :disabled="value === 'loop' && queue.length < 2"
+              >
+                {{ option.label }}
+              </option>
             </select>
             <label class="flex min-w-0 max-w-28 items-center gap-2 text-base-content/70">
               <Volume2 class="size-4 shrink-0" :stroke-width="1.8" aria-hidden="true" />
